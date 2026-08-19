@@ -280,793 +280,782 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ============================================================
-// SOUND SYSTEM
-// ============================================================
-var audioCtx = null;
-var noiseBufferCache = null;
-var lastSoundTime = 0;
+    // ============================================================
+    // SOUND SYSTEM
+    // ============================================================
+    var audioCtx = null;
+    var noiseBufferCache = null;
+    var lastSoundTime = 0;
 
-function getAudioCtx(){
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if(audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-}
-
-function getNoiseBuffer(ctx){
-    if(!noiseBufferCache){
-        var size = ctx.sampleRate * 0.6;
-        noiseBufferCache = ctx.createBuffer(1, size, ctx.sampleRate);
-        var d = noiseBufferCache.getChannelData(0);
-        for(var i=0;i<size;i++) d[i] = Math.random()*2-1;
+    function getAudioCtx(){
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
     }
-    return noiseBufferCache;
-}
 
-function noiseBurst(ctx,t,duration,freq,ftype,peak){
-    var src = ctx.createBufferSource();
-    src.buffer = getNoiseBuffer(ctx);
-    var filt = ctx.createBiquadFilter();
-    filt.type = ftype || 'bandpass';
-    filt.frequency.value = freq || 1000;
-    filt.Q.value = 1.1;
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001,t);
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak,0.001),t+0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
-    src.connect(filt);filt.connect(gain);gain.connect(ctx.destination);
-    src.start(t);src.stop(t+duration+0.03);
-}
+    function getNoiseBuffer(ctx){
+        if(!noiseBufferCache){
+            var size = ctx.sampleRate * 0.6;
+            noiseBufferCache = ctx.createBuffer(1, size, ctx.sampleRate);
+            var d = noiseBufferCache.getChannelData(0);
+            for(var i=0;i<size;i++) d[i] = Math.random()*2-1;
+        }
+        return noiseBufferCache;
+    }
 
-function tone(ctx,t,freq,type,duration,peak,freqEnd){
-    var osc = ctx.createOscillator();
-    osc.type = type || 'sine';
-    osc.frequency.setValueAtTime(freq,t);
-    if(freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1),t+duration);
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001,t);
-    gain.gain.exponentialRampToValueAtTime(Math.max(peak,0.001),t+0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
-    osc.connect(gain);gain.connect(ctx.destination);
-    osc.start(t);osc.stop(t+duration+0.03);
-}
+    function noiseBurst(ctx,t,duration,freq,ftype,peak){
+        var src = ctx.createBufferSource();
+        src.buffer = getNoiseBuffer(ctx);
+        var filt = ctx.createBiquadFilter();
+        filt.type = ftype || 'bandpass';
+        filt.frequency.value = freq || 1000;
+        filt.Q.value = 1.1;
+        var gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001,t);
+        gain.gain.exponentialRampToValueAtTime(Math.max(peak,0.001),t+0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+        src.connect(filt);filt.connect(gain);gain.connect(ctx.destination);
+        src.start(t);src.stop(t+duration+0.03);
+    }
 
-function playSound(type){
-    try{
-        var ctx = getAudioCtx();
-        var t = ctx.currentTime;
+    function tone(ctx,t,freq,type,duration,peak,freqEnd){
+        var osc = ctx.createOscillator();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq,t);
+        if(freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1),t+duration);
+        var gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001,t);
+        gain.gain.exponentialRampToValueAtTime(Math.max(peak,0.001),t+0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+        osc.connect(gain);gain.connect(ctx.destination);
+        osc.start(t);osc.stop(t+duration+0.03);
+    }
 
-        if(type === 'mace'){
-            noiseBurst(ctx,t,0.07,280,'lowpass',0.55);
-            tone(ctx,t,95,'sawtooth',0.32,0.4,38);
-            tone(ctx,t+0.015,220,'square',0.14,0.18,90);
-            tone(ctx,t+0.11,70,'sine',0.22,0.22,30);
-        }else if(type === 'gun'){
-            noiseBurst(ctx,t,0.07,2800,'highpass',0.45);
-            tone(ctx,t,1300,'square',0.05,0.28,280);
-            noiseBurst(ctx,t+0.05,0.12,700,'lowpass',0.08);
-        }else if(type === 'sword'){
-            noiseBurst(ctx,t,0.14,4200,'highpass',0.3);
-            tone(ctx,t,1900,'sine',0.22,0.14,850);
-            tone(ctx,t+0.02,2600,'triangle',0.15,0.08,1400);
-        }else if(type === 'crosshair'){
-            tone(ctx,t,1500,'sine',0.06,0.18);
-            tone(ctx,t+0.03,2200,'sine',0.04,0.08);
-        }else if(type === 'hacker'){
-            tone(ctx,t,650,'square',0.045,0.14);
-            tone(ctx,t+0.06,950,'square',0.045,0.14);
-            tone(ctx,t+0.12,550,'square',0.06,0.16);
-            noiseBurst(ctx,t,0.04,5000,'highpass',0.04);
-        }else if(type === 'star'){
-            tone(ctx,t,1700,'sine',0.16,0.16,2600);
-            tone(ctx,t+0.04,2100,'sine',0.12,0.1,3200);
-        }else if(type === 'heart'){
-            tone(ctx,t,520,'sine',0.22,0.15,760);
-            tone(ctx,t+0.09,650,'sine',0.16,0.1,900);
-        }else if(type === 'fire'){
-            noiseBurst(ctx,t,0.28,750,'lowpass',0.32);
-            tone(ctx,t,160,'sawtooth',0.22,0.18,55);
-        }else if(type === 'magic'){
-            tone(ctx,t,950,'sine',0.22,0.16,1600);
-            tone(ctx,t+0.05,1350,'triangle',0.16,0.12,2100);
-            noiseBurst(ctx,t,0.16,6500,'highpass',0.06);
-        }else if(type === 'crown'){
-            tone(ctx,t,720,'sine',0.2,0.15,1050);
-            tone(ctx,t+0.07,1080,'sine',0.14,0.11,1500);
-        }else if(type === 'dragon'){
-            noiseBurst(ctx,t,0.32,420,'lowpass',0.4);
-            tone(ctx,t,130,'sawtooth',0.34,0.24,45);
-            tone(ctx,t+0.08,260,'sawtooth',0.2,0.12,80);
-        }else if(type === 'ghost'){
-            tone(ctx,t,460,'sine',0.32,0.13,220);
-            noiseBurst(ctx,t,0.32,320,'lowpass',0.05);
-        }else if(type === 'skull'){
-            tone(ctx,t,190,'square',0.2,0.19,75);
-            noiseBurst(ctx,t,0.16,260,'lowpass',0.16);
-        }else if(type === 'cyber'){
-            tone(ctx,t,1150,'sawtooth',0.13,0.16,2300);
-            noiseBurst(ctx,t,0.08,5200,'highpass',0.1);
-        }else if(type === 'cod'){
-            noiseBurst(ctx,t,0.05,2600,'highpass',0.35);
-            tone(ctx,t,950,'square',0.05,0.2,300);
+    function playSound(type){
+        try{
+            var ctx = getAudioCtx();
+            var t = ctx.currentTime;
+
+            if(type === 'mace'){
+                noiseBurst(ctx,t,0.07,280,'lowpass',0.55);
+                tone(ctx,t,95,'sawtooth',0.32,0.4,38);
+                tone(ctx,t+0.015,220,'square',0.14,0.18,90);
+                tone(ctx,t+0.11,70,'sine',0.22,0.22,30);
+            }else if(type === 'gun'){
+                noiseBurst(ctx,t,0.07,2800,'highpass',0.45);
+                tone(ctx,t,1300,'square',0.05,0.28,280);
+                noiseBurst(ctx,t+0.05,0.12,700,'lowpass',0.08);
+            }else if(type === 'sword'){
+                noiseBurst(ctx,t,0.14,4200,'highpass',0.3);
+                tone(ctx,t,1900,'sine',0.22,0.14,850);
+                tone(ctx,t+0.02,2600,'triangle',0.15,0.08,1400);
+            }else if(type === 'crosshair'){
+                tone(ctx,t,1500,'sine',0.06,0.18);
+                tone(ctx,t+0.03,2200,'sine',0.04,0.08);
+            }else if(type === 'hacker'){
+                tone(ctx,t,650,'square',0.045,0.14);
+                tone(ctx,t+0.06,950,'square',0.045,0.14);
+                tone(ctx,t+0.12,550,'square',0.06,0.16);
+                noiseBurst(ctx,t,0.04,5000,'highpass',0.04);
+            }else if(type === 'star'){
+                tone(ctx,t,1700,'sine',0.16,0.16,2600);
+                tone(ctx,t+0.04,2100,'sine',0.12,0.1,3200);
+            }else if(type === 'heart'){
+                tone(ctx,t,520,'sine',0.22,0.15,760);
+                tone(ctx,t+0.09,650,'sine',0.16,0.1,900);
+            }else if(type === 'fire'){
+                noiseBurst(ctx,t,0.28,750,'lowpass',0.32);
+                tone(ctx,t,160,'sawtooth',0.22,0.18,55);
+            }else if(type === 'magic'){
+                tone(ctx,t,950,'sine',0.22,0.16,1600);
+                tone(ctx,t+0.05,1350,'triangle',0.16,0.12,2100);
+                noiseBurst(ctx,t,0.16,6500,'highpass',0.06);
+            }else if(type === 'crown'){
+                tone(ctx,t,720,'sine',0.2,0.15,1050);
+                tone(ctx,t+0.07,1080,'sine',0.14,0.11,1500);
+            }else if(type === 'dragon'){
+                noiseBurst(ctx,t,0.32,420,'lowpass',0.4);
+                tone(ctx,t,130,'sawtooth',0.34,0.24,45);
+                tone(ctx,t+0.08,260,'sawtooth',0.2,0.12,80);
+            }else if(type === 'ghost'){
+                tone(ctx,t,460,'sine',0.32,0.13,220);
+                noiseBurst(ctx,t,0.32,320,'lowpass',0.05);
+            }else if(type === 'skull'){
+                tone(ctx,t,190,'square',0.2,0.19,75);
+                noiseBurst(ctx,t,0.16,260,'lowpass',0.16);
+            }else if(type === 'cyber'){
+                tone(ctx,t,1150,'sawtooth',0.13,0.16,2300);
+                noiseBurst(ctx,t,0.08,5200,'highpass',0.1);
+            }else if(type === 'cod'){
+                noiseBurst(ctx,t,0.05,2600,'highpass',0.35);
+                tone(ctx,t,950,'square',0.05,0.2,300);
+            }else{
+                tone(ctx,t,520,'sine',0.06,0.13);
+            }
+        }catch(e){}
+    }
+
+    function playClickSound(type){
+        var now = performance.now();
+        if(now - lastSoundTime < 45) return;
+        lastSoundTime = now;
+        playSound(type === 'default' ? 'crosshair' : type);
+    }
+
+    // ============================================================
+    // DATA
+    // ============================================================
+    var colors = [{id:1,color:"#8b5cf6"},{id:2,color:"#ec4899"}];
+    var selectedFont = "Arial, sans-serif";
+    var selectedFontName = "Arial";
+    var fontSize = 28;
+    var colorIdCounter = 3;
+    var savedItems = JSON.parse(localStorage.getItem("nyxcolor_saved") || "[]");
+    var currentMode = "font";
+    var currentTheme = "hacker";
+    var copyCount = parseInt(localStorage.getItem("nyxcolor_copies") || 0);
+    var particleCount = 80;
+    var copiedTimeout = null;
+    var defaultColors = [{id:1,color:"#8b5cf6"},{id:2,color:"#ec4899"}];
+    var currentPointer = "default";
+
+    var fonts = [
+        "Arial","Helvetica","Verdana","Tahoma","Trebuchet MS","Impact",
+        "Segoe UI","Calibri","Corbel","Century Gothic",
+        "Times New Roman","Georgia","Garamond","Palatino Linotype",
+        "Courier New","Lucida Console","Consolas","Monaco",
+        "Comic Sans MS","Brush Script MT","Segoe Script",
+        "Poppins","Roboto","Open Sans","Montserrat","Lato","Oswald",
+        "Raleway","Nunito","Quicksand","Playfair Display","Merriweather",
+        "Josefin Sans","Pacifico","Lobster","Dancing Script","Bangers",
+        "Fredoka One","Righteous","Bebas Neue","Cinzel","Cormorant","Amiri",
+        "Small Text"
+    ];
+
+    // ============================================================
+    // LANGUAGES
+    // ============================================================
+    var languages = [
+        {code:"en",name:"English",flag:"🇬🇧"},
+        {code:"fa",name:"فارسی",flag:"🇮🇷"},
+        {code:"tr",name:"Türkçe",flag:"🇹🇷"},
+        {code:"ar",name:"العربية",flag:"🇸🇦"},
+        {code:"de",name:"Deutsch",flag:"🇩🇪"},
+        {code:"fr",name:"Français",flag:"🇫🇷"},
+        {code:"es",name:"Español",flag:"🇪🇸"},
+        {code:"it",name:"Italiano",flag:"🇮🇹"},
+        {code:"pt",name:"Português",flag:"🇵🇹"},
+        {code:"ru",name:"Русский",flag:"🇷🇺"},
+        {code:"ja",name:"日本語",flag:"🇯🇵"},
+        {code:"ko",name:"한국어",flag:"🇰🇷"},
+        {code:"zh",name:"中文",flag:"🇨🇳"},
+        {code:"hi",name:"हिन्दी",flag:"🇮🇳"},
+        {code:"ur",name:"اردو",flag:"🇵🇰"}
+    ];
+
+    var currentLang = "en";
+    var translations = {
+        en:{title:"✨ NyxColor",home:"Home",fonts:"Fonts",saved:"Saved",palette:"Palette",text:"Text",colors:"Colors",selectFont:"Select Font",savedColors:"Saved",nothingSaved:"🎨 Nothing saved yet",copyHint:"Click to copy",copied:"Copied!",size:"Size",reset:"Reset",addColor:"+ Add",resetColors:"Reset",reverse:"↻ Rev",random:"🎲 Rand",resetAll:"Reset All",save:"Save",copy:"Copy",font:"Font",color:"Color",gradient:"Gradient",theme:"Theme",language:"Language"},
+        fa:{title:"✨ نیکس‌کالر",home:"خانه",fonts:"فونت‌ها",saved:"ذخیره‌ها",palette:"پالت",text:"متن",colors:"رنگ‌ها",selectFont:"انتخاب فونت",savedColors:"ذخیره‌ها",nothingSaved:"🎨 چیزی ذخیره نشده",copyHint:"برای کپی کلیک کن",copied:"کپی شد!",size:"اندازه",reset:"بازنشانی",addColor:"+ افزودن",resetColors:"بازنشانی رنگ‌ها",reverse:"↻ برعکس",random:"🎲 تصادفی",resetAll:"بازنشانی همه",save:"ذخیره",copy:"کپی",font:"فونت",color:"رنگ",gradient:"گرادیانت",theme:"تم",language:"زبان"},
+        tr:{title:"✨ NyxColor",home:"Ana Sayfa",fonts:"Yazı Tipleri",saved:"Kayıtlı",palette:"Palet",text:"Metin",colors:"Renkler",selectFont:"Yazı Tipi Seç",savedColors:"Kayıtlı",nothingSaved:"🎨 Henüz kayıt yok",copyHint:"Kopyalamak için tıkla",copied:"Kopyalandı!",size:"Boyut",reset:"Sıfırla",addColor:"+ Ekle",resetColors:"Renkleri Sıfırla",reverse:"↻ Ters Çevir",random:"🎲 Rastgele",resetAll:"Hepsini Sıfırla",save:"Kaydet",copy:"Kopyala",font:"Yazı Tipi",color:"Renk",gradient:"Gradyan",theme:"Tema",language:"Dil"},
+        ar:{title:"✨ نيكس كولر",home:"الرئيسية",fonts:"الخطوط",saved:"المحفوظ",palette:"لوحة",text:"النص",colors:"الألوان",selectFont:"اختر الخط",savedColors:"المحفوظات",nothingSaved:"🎨 لم يتم حفظ شيء",copyHint:"انقر للنسخ",copied:"تم النسخ!",size:"الحجم",reset:"إعادة تعيين",addColor:"+ إضافة",resetColors:"إعادة تعيين الألوان",reverse:"↻ عكس",random:"🎲 عشوائي",resetAll:"إعادة تعيين الكل",save:"حفظ",copy:"نسخ",font:"الخط",color:"اللون",gradient:"تدرج",theme:"السمة",language:"اللغة"},
+        de:{title:"✨ NyxColor",home:"Startseite",fonts:"Schriften",saved:"Gespeichert",palette:"Palette",text:"Text",colors:"Farben",selectFont:"Schrift auswählen",savedColors:"Gespeichert",nothingSaved:"🎨 Nichts gespeichert",copyHint:"Zum Kopieren klicken",copied:"Kopiert!",size:"Größe",reset:"Zurücksetzen",addColor:"+ Hinzufügen",resetColors:"Farben zurücksetzen",reverse:"↻ Umkehren",random:"🎲 Zufällig",resetAll:"Alles zurücksetzen",save:"Speichern",copy:"Kopieren",font:"Schrift",color:"Farbe",gradient:"Farbverlauf",theme:"Thema",language:"Sprache"}
+    };
+
+    // ============================================================
+    // THEMES
+    // ============================================================
+    var themeData = [
+        {id:"minecraft",name:"Minecraft",icon:"⛏",color:"#5d8a3c",particle:"#8ef29a",shapes:["square","circle"],bg:"radial-gradient(ellipse at 30% 70%,#3a5a2a,#22331a,#141d0f)"},
+        {id:"cod",name:"Call of Duty",icon:"🔫",color:"#ff6b35",particle:"#ffb37a",shapes:["tracer","spark"],bg:"radial-gradient(ellipse at 50% 50%,#26261f,#17170f,#0a0a08)"},
+        {id:"hacker",name:"Hacker",icon:"💻",color:"#00ff41",particle:"#00ff41",shapes:["text","circle"],rain:true,bg:"radial-gradient(ellipse at 70% 80%,#0a2a0a,#051505,#000800)"},
+        {id:"forest",name:"Forest",icon:"🌲",color:"#4ade80",particle:"#86efac",shapes:["leaf","circle"],bg:"radial-gradient(ellipse at 50% 80%,#2d5a27,#1a3a14,#0a1a0a)"},
+        {id:"nightcity",name:"Night City",icon:"🌃",color:"#f472b6",particle:"#22d3ee",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 60% 40%,#1a2a4a,#0a0a2a,#00000a)"},
+        {id:"cyberpunk",name:"Cyberpunk",icon:"🔮",color:"#d946ef",particle:"#f0abfc",shapes:["glitch","spark"],bg:"radial-gradient(ellipse at 40% 60%,#2a0a4a,#1a0a2a,#0a0a1a)"},
+        {id:"desert",name:"Desert",icon:"🏜",color:"#fbbf24",particle:"#fde68a",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 80%,#b8860b,#8b6914,#4a350a)"},
+        {id:"snow",name:"Snow",icon:"❄️",color:"#e2e8f0",particle:"#ffffff",shapes:["snowflake","circle"],bg:"radial-gradient(ellipse at 50% 50%,#5a6a7a,#3a4a5a,#1a2a3a)"},
+        {id:"ocean",name:"Ocean",icon:"🌊",color:"#22d3ee",particle:"#67e8f9",shapes:["bubble","circle"],bg:"radial-gradient(ellipse at 30% 60%,#0a4a7a,#0a2a4a,#0a0a1a)"},
+        {id:"space",name:"Space",icon:"🚀",color:"#a78bfa",particle:"#f59e0b",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#1a0a3a,#0a0a2a,#00000a)"},
+        {id:"fire",name:"Fire",icon:"🔥",color:"#ff6b35",particle:"#ffb347",shapes:["ember","spark"],bg:"radial-gradient(ellipse at 50% 80%,#ff4500,#8b0000,#2a0000)"},
+        {id:"neon",name:"Neon",icon:"💜",color:"#8b5cf6",particle:"#f59e0b",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 50% 50%,#1a0a2e,#0a0a1a,#0a0a0a)"},
+        {id:"sunset",name:"Sunset",icon:"🌅",color:"#ff6b35",particle:"#ffd39c",shapes:["circle"],bg:"radial-gradient(ellipse at 40% 70%,#ff6b35,#ff1493,#4a0a2a)"},
+        {id:"aurora",name:"Aurora",icon:"🌌",color:"#00ff87",particle:"#00ffe0",shapes:["spark","star"],bg:"radial-gradient(ellipse at 50% 30%,#0a5a4a,#0a3a5a,#0a0a2a)"},
+        {id:"steampunk",name:"Steampunk",icon:"⚙️",color:"#fbbf24",particle:"#d4a017",shapes:["square","spark"],bg:"radial-gradient(ellipse at 50% 50%,#8b6914,#4a350a,#1a0a00)"},
+        {id:"vaporwave",name:"Vaporwave",icon:"🌴",color:"#ff6bff",particle:"#7ee7ff",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 30% 70%,#8a2ab8,#4a0a6a,#1a0a2a)"},
+        {id:"cave",name:"Cave",icon:"🕯",color:"#ff9d6c",particle:"#ffb37a",shapes:["ember"],bg:"radial-gradient(ellipse at 50% 80%,#2a1a0a,#160d05,#000000)"},
+        {id:"castle",name:"Castle",icon:"🏰",color:"#94a3b8",particle:"#f59e0b",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 50% 50%,#4a4a4a,#2a2a2a,#0a0a0a)"},
+        {id:"pirate",name:"Pirate",icon:"🏴",color:"#fbbf24",particle:"#fde68a",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 70%,#2a5a7a,#0a2a4a,#0a0a1a)"},
+        {id:"ninja",name:"Ninja",icon:"🥷",color:"#ef4444",particle:"#f87171",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 60% 40%,#2a1a1a,#150d0d,#000000)"},
+        {id:"samurai",name:"Samurai",icon:"⚔️",color:"#f87171",particle:"#ff6b6b",shapes:["leaf","spark"],bg:"radial-gradient(ellipse at 30% 70%,#3a1a0a,#1a0a00,#0a0a00)"},
+        {id:"dream",name:"Dream",icon:"💭",color:"#a78bfa",particle:"#e9d5ff",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#5a1a8a,#2a0a4a,#0a0a2a)"},
+        {id:"apocalypse",name:"Apocalypse",icon:"☢",color:"#f97316",particle:"#c4c4c4",shapes:["ember","spark"],bg:"radial-gradient(ellipse at 50% 80%,#4a2a0a,#2a0a0a,#0a0a0a)"},
+        {id:"heaven",name:"Heaven",icon:"😇",color:"#fef9c3",particle:"#ffffff",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 30%,#c7dcf0,#8fb4d9,#4a6a8a)"},
+        {id:"hell",name:"Hell",icon:"👿",color:"#ff2b2b",particle:"#ff9d6c",shapes:["ember","spark"],bg:"radial-gradient(ellipse at 50% 80%,#8b0000,#4a0000,#1a0000)"},
+        {id:"magic",name:"Magic",icon:"🔮",color:"#a78bfa",particle:"#f59e0b",shapes:["rune","spark"],bg:"radial-gradient(ellipse at 40% 60%,#5a2a8a,#2a0a4a,#0a0a2a)"},
+        {id:"party",name:"Party",icon:"🎉",color:"#ff6bff",particle:"#00ff41",shapes:["spark","star"],bg:"radial-gradient(ellipse at 50% 50%,#8a2a7a,#7a2a35,#4a0a3a)"},
+        {id:"glitch",name:"Glitch",icon:"💫",color:"#00ff41",particle:"#ff0066",shapes:["glitch","spark"],bg:"radial-gradient(ellipse at 50% 50%,#1a3a1a,#3a0a1a,#0a0a1a)"},
+        {id:"void",name:"Void",icon:"🕳",color:"#8a8a8a",particle:"#ffffff",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 50%,#1a1a1a,#050505,#000000)"},
+        {id:"rainbow",name:"Rainbow",icon:"🌈",color:"#ff6bff",particle:"#ffd700",shapes:["spark","star"],bg:"conic-gradient(from 0deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#8b00ff,#ff0000)"},
+        {id:"ender",name:"Ender",icon:"👁",color:"#22d3ee",particle:"#a78bfa",shapes:["star","circle"],bg:"radial-gradient(ellipse at 40% 60%,#1a3a2a,#0a1a1a,#0a0a0a)"},
+        {id:"whitegold",name:"White Gold",icon:"✨",color:"#fef08a",particle:"#ffffff",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#3a3a3a,#151515,#000000)"},
+        {id:"blackgold",name:"Black Gold",icon:"🖤",color:"#fde047",particle:"#fde047",shapes:["spark","star"],bg:"radial-gradient(ellipse at 50% 50%,#2a2410,#0a0a00,#000000)"},
+        {id:"gold",name:"Pure Gold",icon:"⭐",color:"#fde047",particle:"#fff3b0",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#4a3f0a,#2a2400,#0a0800)"},
+        {id:"rose",name:"Rose Gold",icon:"🌹",color:"#f9a8d4",particle:"#fbcfe8",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 50%,#5e1a30,#2a0a15,#0a0a0a)"}
+    ];
+
+    // ============================================================
+    // PARTICLE SYSTEM
+    // ============================================================
+    var canvas = document.getElementById('particles-canvas');
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var mouse = {x: -1000, y: -1000};
+    var particleColorRGB = {r:0,g:255,b:65};
+    var manualShape = null;
+    var shapeTexts = {
+        text: ['0101','1010','HACK','ROOT','ACCESS','SUDO','0x1A','#!/','$_','< >'],
+        rune: ['✦','☾','✵','MAGIC','SPELL','✧','ARCANE','☽','✴']
+    };
+    var matrixChars = 'アイウエオカキクケコサシスセソ0123456789ABCDEFｱｲｳｴｵﾊﾋﾌﾍﾎ'.split('');
+    var matrixCols = [];
+
+    function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;initMatrixRain()}
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    document.addEventListener('mousemove', function(e){mouse.x=e.clientX;mouse.y=e.clientY});
+    document.addEventListener('mouseleave', function(){mouse.x=-1000;mouse.y=-1000});
+
+    function pickShape(theme){
+        if(manualShape) return manualShape;
+        var list = theme.shapes || ['circle'];
+        return list[Math.floor(Math.random()*list.length)];
+    }
+
+    function createParticles(count){
+        particles=[];
+        var theme = themeData.find(function(t){return t.id===currentTheme}) || themeData[0];
+        particleColorRGB = hexToRgb(theme.particle);
+        for(var i=0;i<count;i++){
+            var shape = pickShape(theme);
+            var text = '';
+            if(shape==='text') text = shapeTexts.text[Math.floor(Math.random()*shapeTexts.text.length)];
+            if(shape==='rune') text = shapeTexts.rune[Math.floor(Math.random()*shapeTexts.rune.length)];
+            particles.push({
+                x:Math.random()*canvas.width,
+                y:Math.random()*canvas.height,
+                size:Math.random()*4+1.5,
+                speedX:(Math.random()-0.5)*0.4,
+                speedY: shape==='snowflake' ? (Math.random()*0.5+0.15) : (shape==='ember' ? -(Math.random()*0.6+0.2) : (Math.random()-0.5)*0.4),
+                rot:Math.random()*Math.PI*2,
+                rotSpeed:(Math.random()-0.5)*0.02,
+                pulse:Math.random()*Math.PI*2,
+                shape:shape,
+                text:text
+            });
+        }
+    }
+    createParticles(80);
+
+    function setParticleCount(count){
+        particleCount=count;
+        createParticles(count);
+        document.querySelectorAll('#particleBox .dot').forEach(function(d){d.classList.remove('active')});
+        var idx=[80,160,280].indexOf(count);
+        if(idx!==-1) document.querySelectorAll('#particleBox .dot')[idx].classList.add('active');
+    }
+
+    function setParticleShape(shape){
+        manualShape = (shape==='auto') ? null : shape;
+        document.querySelectorAll('.shape-btn').forEach(function(b){b.classList.remove('active')});
+        var btns = document.querySelectorAll('.shape-btn');
+        var shapes = ['auto','circle','square','star','spark','leaf','tracer','glitch','rune'];
+        var idx = shapes.indexOf(shape);
+        if(btns[idx]) btns[idx].classList.add('active');
+        createParticles(particleCount);
+        showToast('Shape: '+shape);
+    }
+
+    function drawShape(p, size, alpha){
+        var rgb = particleColorRGB;
+        var col = 'rgba('+rgb.r+','+rgb.g+','+rgb.b+','+alpha+')';
+        var shape = p.shape;
+        ctx.save();
+        ctx.translate(p.x,p.y);
+        ctx.shadowColor = 'rgba('+rgb.r+','+rgb.g+','+rgb.b+',0.9)';
+        ctx.shadowBlur = size*2+3;
+        if(shape!=='text' && shape!=='rune' && shape!=='tracer') ctx.rotate(p.rot);
+
+        if(shape==='square'){
+            ctx.fillStyle=col;
+            ctx.fillRect(-size,-size,size*2,size*2);
+        }else if(shape==='star'){
+            ctx.fillStyle=col;
+            ctx.beginPath();
+            for(var i=0;i<10;i++){
+                var a1=(i*Math.PI)/5-Math.PI/2;
+                var r1= i%2===0 ? size*1.7 : size*0.7;
+                ctx.lineTo(Math.cos(a1)*r1, Math.sin(a1)*r1);
+            }
+            ctx.closePath();ctx.fill();
+        }else if(shape==='leaf'){
+            ctx.fillStyle=col;
+            ctx.beginPath();
+            ctx.ellipse(0,0,size*1.6,size*0.9,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle='rgba(0,0,0,0.15)';
+            ctx.lineWidth=0.5;
+            ctx.beginPath();ctx.moveTo(-size*1.4,0);ctx.lineTo(size*1.4,0);ctx.stroke();
+        }else if(shape==='spark'){
+            ctx.strokeStyle=col;
+            ctx.lineWidth=1.5;
+            ctx.beginPath();
+            ctx.moveTo(-size*1.5,0);ctx.lineTo(size*1.5,0);
+            ctx.moveTo(0,-size*1.5);ctx.lineTo(0,size*1.5);
+            ctx.stroke();
+        }else if(shape==='tracer'){
+            var ang = Math.atan2(p.speedY, p.speedX || 0.001);
+            ctx.strokeStyle=col;
+            ctx.lineWidth=1.5;
+            ctx.beginPath();
+            ctx.moveTo(-Math.cos(ang)*size*2.5, -Math.sin(ang)*size*2.5);
+            ctx.lineTo(Math.cos(ang)*size*1.2, Math.sin(ang)*size*1.2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(Math.cos(ang)*size*1.2, Math.sin(ang)*size*1.2, size*0.5, 0, Math.PI*2);
+            ctx.fillStyle=col;ctx.fill();
+        }else if(shape==='glitch'){
+            ctx.fillStyle='rgba(255,0,90,0.5)';
+            ctx.fillRect(-size-1,-size,size*2,size*0.6);
+            ctx.fillStyle='rgba(0,255,255,0.5)';
+            ctx.fillRect(-size+1,-size*0.3,size*2,size*0.6);
+            ctx.fillStyle=col;
+            ctx.fillRect(-size,-size*0.6,size*2,size*0.6);
+        }else if(shape==='text' || shape==='rune'){
+            ctx.font=(shape==='rune'?'bold ':'')+(size*2)+'px monospace';
+            ctx.fillStyle=col;
+            ctx.fillText(p.text,0,0);
         }else{
-            tone(ctx,t,520,'sine',0.06,0.13);
+            ctx.fillStyle=col;
+            ctx.beginPath();
+            ctx.arc(0,0,size,0,Math.PI*2);
+            ctx.fill();
         }
-    }catch(e){}
-}
-
-function playClickSound(type){
-    var now = performance.now();
-    if(now - lastSoundTime < 45) return;
-    lastSoundTime = now;
-    playSound(type === 'default' ? 'crosshair' : type);
-}
-
-// ============================================================
-// DATA
-// ============================================================
-var colors = [{id:1,color:"#8b5cf6"},{id:2,color:"#ec4899"}];
-var selectedFont = "Arial, sans-serif";
-var selectedFontName = "Arial";
-var fontSize = 28;
-var colorIdCounter = 3;
-var savedItems = JSON.parse(localStorage.getItem("nyxcolor_saved") || "[]");
-var currentMode = "font";
-var currentTheme = "hacker";
-var copyCount = parseInt(localStorage.getItem("nyxcolor_copies") || 0);
-var particleCount = 80;
-var copiedTimeout = null;
-var defaultColors = [{id:1,color:"#8b5cf6"},{id:2,color:"#ec4899"}];
-var currentPointer = "default";
-
-var fonts = [
-    "Arial","Helvetica","Verdana","Tahoma","Trebuchet MS","Impact",
-    "Segoe UI","Calibri","Corbel","Century Gothic",
-    "Times New Roman","Georgia","Garamond","Palatino Linotype",
-    "Courier New","Lucida Console","Consolas","Monaco",
-    "Comic Sans MS","Brush Script MT","Segoe Script",
-    "Poppins","Roboto","Open Sans","Montserrat","Lato","Oswald",
-    "Raleway","Nunito","Quicksand","Playfair Display","Merriweather",
-    "Josefin Sans","Pacifico","Lobster","Dancing Script","Bangers",
-    "Fredoka One","Righteous","Bebas Neue","Cinzel","Cormorant","Amiri",
-    "Small Text"
-];
-
-// ============================================================
-// LANGUAGES
-// ============================================================
-var languages = [
-    {code:"en",name:"English",flag:"🇬🇧"},
-    {code:"fa",name:"فارسی",flag:"🇮🇷"},
-    {code:"tr",name:"Türkçe",flag:"🇹🇷"},
-    {code:"ar",name:"العربية",flag:"🇸🇦"},
-    {code:"de",name:"Deutsch",flag:"🇩🇪"},
-    {code:"fr",name:"Français",flag:"🇫🇷"},
-    {code:"es",name:"Español",flag:"🇪🇸"},
-    {code:"it",name:"Italiano",flag:"🇮🇹"},
-    {code:"pt",name:"Português",flag:"🇵🇹"},
-    {code:"ru",name:"Русский",flag:"🇷🇺"},
-    {code:"ja",name:"日本語",flag:"🇯🇵"},
-    {code:"ko",name:"한국어",flag:"🇰🇷"},
-    {code:"zh",name:"中文",flag:"🇨🇳"},
-    {code:"hi",name:"हिन्दी",flag:"🇮🇳"},
-    {code:"ur",name:"اردو",flag:"🇵🇰"}
-];
-
-var currentLang = "en";
-var translations = {
-    en:{title:"✨ NyxColor",home:"Home",fonts:"Fonts",saved:"Saved",palette:"Palette",text:"Text",colors:"Colors",selectFont:"Select Font",savedColors:"Saved",nothingSaved:"🎨 Nothing saved yet",copyHint:"Click to copy",copied:"Copied!",size:"Size",reset:"Reset",addColor:"+ Add",resetColors:"Reset",reverse:"↻ Rev",random:"🎲 Rand",resetAll:"Reset All",save:"Save",copy:"Copy",font:"Font",color:"Color",gradient:"Gradient",theme:"Theme",language:"Language"},
-    fa:{title:"✨ نیکس‌کالر",home:"خانه",fonts:"فونت‌ها",saved:"ذخیره‌ها",palette:"پالت",text:"متن",colors:"رنگ‌ها",selectFont:"انتخاب فونت",savedColors:"ذخیره‌ها",nothingSaved:"🎨 چیزی ذخیره نشده",copyHint:"برای کپی کلیک کن",copied:"کپی شد!",size:"اندازه",reset:"بازنشانی",addColor:"+ افزودن",resetColors:"بازنشانی رنگ‌ها",reverse:"↻ برعکس",random:"🎲 تصادفی",resetAll:"بازنشانی همه",save:"ذخیره",copy:"کپی",font:"فونت",color:"رنگ",gradient:"گرادیانت",theme:"تم",language:"زبان"},
-    tr:{title:"✨ NyxColor",home:"Ana Sayfa",fonts:"Yazı Tipleri",saved:"Kayıtlı",palette:"Palet",text:"Metin",colors:"Renkler",selectFont:"Yazı Tipi Seç",savedColors:"Kayıtlı",nothingSaved:"🎨 Henüz kayıt yok",copyHint:"Kopyalamak için tıkla",copied:"Kopyalandı!",size:"Boyut",reset:"Sıfırla",addColor:"+ Ekle",resetColors:"Renkleri Sıfırla",reverse:"↻ Ters Çevir",random:"🎲 Rastgele",resetAll:"Hepsini Sıfırla",save:"Kaydet",copy:"Kopyala",font:"Yazı Tipi",color:"Renk",gradient:"Gradyan",theme:"Tema",language:"Dil"},
-    ar:{title:"✨ نيكس كولر",home:"الرئيسية",fonts:"الخطوط",saved:"المحفوظ",palette:"لوحة",text:"النص",colors:"الألوان",selectFont:"اختر الخط",savedColors:"المحفوظات",nothingSaved:"🎨 لم يتم حفظ شيء",copyHint:"انقر للنسخ",copied:"تم النسخ!",size:"الحجم",reset:"إعادة تعيين",addColor:"+ إضافة",resetColors:"إعادة تعيين الألوان",reverse:"↻ عكس",random:"🎲 عشوائي",resetAll:"إعادة تعيين الكل",save:"حفظ",copy:"نسخ",font:"الخط",color:"اللون",gradient:"تدرج",theme:"السمة",language:"اللغة"},
-    de:{title:"✨ NyxColor",home:"Startseite",fonts:"Schriften",saved:"Gespeichert",palette:"Palette",text:"Text",colors:"Farben",selectFont:"Schrift auswählen",savedColors:"Gespeichert",nothingSaved:"🎨 Nichts gespeichert",copyHint:"Zum Kopieren klicken",copied:"Kopiert!",size:"Größe",reset:"Zurücksetzen",addColor:"+ Hinzufügen",resetColors:"Farben zurücksetzen",reverse:"↻ Umkehren",random:"🎲 Zufällig",resetAll:"Alles zurücksetzen",save:"Speichern",copy:"Kopieren",font:"Schrift",color:"Farbe",gradient:"Farbverlauf",theme:"Thema",language:"Sprache"}
-};
-
-// ============================================================
-// THEMES
-// ============================================================
-var themeData = [
-    {id:"minecraft",name:"Minecraft",icon:"⛏",color:"#5d8a3c",particle:"#8ef29a",shapes:["square","circle"],bg:"radial-gradient(ellipse at 30% 70%,#3a5a2a,#22331a,#141d0f)"},
-    {id:"cod",name:"Call of Duty",icon:"🔫",color:"#ff6b35",particle:"#ffb37a",shapes:["tracer","spark"],bg:"radial-gradient(ellipse at 50% 50%,#26261f,#17170f,#0a0a08)"},
-    {id:"hacker",name:"Hacker",icon:"💻",color:"#00ff41",particle:"#00ff41",shapes:["text","circle"],rain:true,bg:"radial-gradient(ellipse at 70% 80%,#0a2a0a,#051505,#000800)"},
-    {id:"forest",name:"Forest",icon:"🌲",color:"#4ade80",particle:"#86efac",shapes:["leaf","circle"],bg:"radial-gradient(ellipse at 50% 80%,#2d5a27,#1a3a14,#0a1a0a)"},
-    {id:"nightcity",name:"Night City",icon:"🌃",color:"#f472b6",particle:"#22d3ee",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 60% 40%,#1a2a4a,#0a0a2a,#00000a)"},
-    {id:"cyberpunk",name:"Cyberpunk",icon:"🔮",color:"#d946ef",particle:"#f0abfc",shapes:["glitch","spark"],bg:"radial-gradient(ellipse at 40% 60%,#2a0a4a,#1a0a2a,#0a0a1a)"},
-    {id:"desert",name:"Desert",icon:"🏜",color:"#fbbf24",particle:"#fde68a",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 80%,#b8860b,#8b6914,#4a350a)"},
-    {id:"snow",name:"Snow",icon:"❄️",color:"#e2e8f0",particle:"#ffffff",shapes:["snowflake","circle"],bg:"radial-gradient(ellipse at 50% 50%,#5a6a7a,#3a4a5a,#1a2a3a)"},
-    {id:"ocean",name:"Ocean",icon:"🌊",color:"#22d3ee",particle:"#67e8f9",shapes:["bubble","circle"],bg:"radial-gradient(ellipse at 30% 60%,#0a4a7a,#0a2a4a,#0a0a1a)"},
-    {id:"space",name:"Space",icon:"🚀",color:"#a78bfa",particle:"#f59e0b",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#1a0a3a,#0a0a2a,#00000a)"},
-    {id:"fire",name:"Fire",icon:"🔥",color:"#ff6b35",particle:"#ffb347",shapes:["ember","spark"],bg:"radial-gradient(ellipse at 50% 80%,#ff4500,#8b0000,#2a0000)"},
-    {id:"neon",name:"Neon",icon:"💜",color:"#8b5cf6",particle:"#f59e0b",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 50% 50%,#1a0a2e,#0a0a1a,#0a0a0a)"},
-    {id:"sunset",name:"Sunset",icon:"🌅",color:"#ff6b35",particle:"#ffd39c",shapes:["circle"],bg:"radial-gradient(ellipse at 40% 70%,#ff6b35,#ff1493,#4a0a2a)"},
-    {id:"aurora",name:"Aurora",icon:"🌌",color:"#00ff87",particle:"#00ffe0",shapes:["spark","star"],bg:"radial-gradient(ellipse at 50% 30%,#0a5a4a,#0a3a5a,#0a0a2a)"},
-    {id:"steampunk",name:"Steampunk",icon:"⚙️",color:"#fbbf24",particle:"#d4a017",shapes:["square","spark"],bg:"radial-gradient(ellipse at 50% 50%,#8b6914,#4a350a,#1a0a00)"},
-    {id:"vaporwave",name:"Vaporwave",icon:"🌴",color:"#ff6bff",particle:"#7ee7ff",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 30% 70%,#8a2ab8,#4a0a6a,#1a0a2a)"},
-    {id:"cave",name:"Cave",icon:"🕯",color:"#ff9d6c",particle:"#ffb37a",shapes:["ember"],bg:"radial-gradient(ellipse at 50% 80%,#2a1a0a,#160d05,#000000)"},
-    {id:"castle",name:"Castle",icon:"🏰",color:"#94a3b8",particle:"#f59e0b",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 50% 50%,#4a4a4a,#2a2a2a,#0a0a0a)"},
-    {id:"pirate",name:"Pirate",icon:"🏴",color:"#fbbf24",particle:"#fde68a",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 70%,#2a5a7a,#0a2a4a,#0a0a1a)"},
-    {id:"ninja",name:"Ninja",icon:"🥷",color:"#ef4444",particle:"#f87171",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 60% 40%,#2a1a1a,#150d0d,#000000)"},
-    {id:"samurai",name:"Samurai",icon:"⚔️",color:"#f87171",particle:"#ff6b6b",shapes:["leaf","spark"],bg:"radial-gradient(ellipse at 30% 70%,#3a1a0a,#1a0a00,#0a0a00)"},
-    {id:"dream",name:"Dream",icon:"💭",color:"#a78bfa",particle:"#e9d5ff",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#5a1a8a,#2a0a4a,#0a0a2a)"},
-    {id:"apocalypse",name:"Apocalypse",icon:"☢",color:"#f97316",particle:"#c4c4c4",shapes:["ember","spark"],bg:"radial-gradient(ellipse at 50% 80%,#4a2a0a,#2a0a0a,#0a0a0a)"},
-    {id:"heaven",name:"Heaven",icon:"😇",color:"#fef9c3",particle:"#ffffff",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 30%,#c7dcf0,#8fb4d9,#4a6a8a)"},
-    {id:"hell",name:"Hell",icon:"👿",color:"#ff2b2b",particle:"#ff9d6c",shapes:["ember","spark"],bg:"radial-gradient(ellipse at 50% 80%,#8b0000,#4a0000,#1a0000)"},
-    {id:"magic",name:"Magic",icon:"🔮",color:"#a78bfa",particle:"#f59e0b",shapes:["rune","spark"],bg:"radial-gradient(ellipse at 40% 60%,#5a2a8a,#2a0a4a,#0a0a2a)"},
-    {id:"party",name:"Party",icon:"🎉",color:"#ff6bff",particle:"#00ff41",shapes:["spark","star"],bg:"radial-gradient(ellipse at 50% 50%,#8a2a7a,#7a2a35,#4a0a3a)"},
-    {id:"glitch",name:"Glitch",icon:"💫",color:"#00ff41",particle:"#ff0066",shapes:["glitch","spark"],bg:"radial-gradient(ellipse at 50% 50%,#1a3a1a,#3a0a1a,#0a0a1a)"},
-    {id:"void",name:"Void",icon:"🕳",color:"#8a8a8a",particle:"#ffffff",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 50%,#1a1a1a,#050505,#000000)"},
-    {id:"rainbow",name:"Rainbow",icon:"🌈",color:"#ff6bff",particle:"#ffd700",shapes:["spark","star"],bg:"conic-gradient(from 0deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#8b00ff,#ff0000)"},
-    {id:"ender",name:"Ender",icon:"👁",color:"#22d3ee",particle:"#a78bfa",shapes:["star","circle"],bg:"radial-gradient(ellipse at 40% 60%,#1a3a2a,#0a1a1a,#0a0a0a)"},
-    {id:"whitegold",name:"White Gold",icon:"✨",color:"#fef08a",particle:"#ffffff",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#3a3a3a,#151515,#000000)"},
-    {id:"blackgold",name:"Black Gold",icon:"🖤",color:"#fde047",particle:"#fde047",shapes:["spark","star"],bg:"radial-gradient(ellipse at 50% 50%,#2a2410,#0a0a00,#000000)"},
-    {id:"gold",name:"Pure Gold",icon:"⭐",color:"#fde047",particle:"#fff3b0",shapes:["star","circle"],bg:"radial-gradient(ellipse at 50% 50%,#4a3f0a,#2a2400,#0a0800)"},
-    {id:"rose",name:"Rose Gold",icon:"🌹",color:"#f9a8d4",particle:"#fbcfe8",shapes:["circle"],bg:"radial-gradient(ellipse at 50% 50%,#5e1a30,#2a0a15,#0a0a0a)"}
-];
-
-// ============================================================
-// PARTICLE SYSTEM
-// ============================================================
-var canvas = document.getElementById('particles-canvas');
-var ctx = canvas.getContext('2d');
-var particles = [];
-var mouse = {x: -1000, y: -1000};
-var particleColorRGB = {r:0,g:255,b:65};
-var manualShape = null;
-var shapeTexts = {
-    text: ['0101','1010','HACK','ROOT','ACCESS','SUDO','0x1A','#!/','$_','< >'],
-    rune: ['✦','☾','✵','MAGIC','SPELL','✧','ARCANE','☽','✴']
-};
-var matrixChars = 'アイウエオカキクケコサシスセソ0123456789ABCDEFｱｲｳｴｵﾊﾋﾌﾍﾎ'.split('');
-var matrixCols = [];
-
-function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;initMatrixRain()}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-document.addEventListener('mousemove', function(e){mouse.x=e.clientX;mouse.y=e.clientY});
-document.addEventListener('mouseleave', function(){mouse.x=-1000;mouse.y=-1000});
-
-function pickShape(theme){
-    if(manualShape) return manualShape;
-    var list = theme.shapes || ['circle'];
-    return list[Math.floor(Math.random()*list.length)];
-}
-
-function createParticles(count){
-    particles=[];
-    var theme = themeData.find(function(t){return t.id===currentTheme}) || themeData[0];
-    particleColorRGB = hexToRgb(theme.particle);
-    for(var i=0;i<count;i++){
-        var shape = pickShape(theme);
-        var text = '';
-        if(shape==='text') text = shapeTexts.text[Math.floor(Math.random()*shapeTexts.text.length)];
-        if(shape==='rune') text = shapeTexts.rune[Math.floor(Math.random()*shapeTexts.rune.length)];
-        particles.push({
-            x:Math.random()*canvas.width,
-            y:Math.random()*canvas.height,
-            size:Math.random()*4+1.5,
-            speedX:(Math.random()-0.5)*0.4,
-            speedY: shape==='snowflake' ? (Math.random()*0.5+0.15) : (shape==='ember' ? -(Math.random()*0.6+0.2) : (Math.random()-0.5)*0.4),
-            rot:Math.random()*Math.PI*2,
-            rotSpeed:(Math.random()-0.5)*0.02,
-            pulse:Math.random()*Math.PI*2,
-            shape:shape,
-            text:text
-        });
+        ctx.restore();
     }
-}
-createParticles(80);
 
-function setParticleCount(count){
-    particleCount=count;
-    createParticles(count);
-    document.querySelectorAll('#particleBox .dot').forEach(function(d){d.classList.remove('active')});
-    var idx=[80,160,280].indexOf(count);
-    if(idx!==-1) document.querySelectorAll('#particleBox .dot')[idx].classList.add('active');
-}
-
-function setParticleShape(shape){
-    manualShape = (shape==='auto') ? null : shape;
-    document.querySelectorAll('.shape-btn').forEach(function(b){b.classList.remove('active')});
-    var btns = document.querySelectorAll('.shape-btn');
-    var shapes = ['auto','circle','square','star','spark','leaf','tracer','glitch','rune'];
-    var idx = shapes.indexOf(shape);
-    if(btns[idx]) btns[idx].classList.add('active');
-    createParticles(particleCount);
-    showToast('Shape: '+shape);
-}
-
-function drawShape(p, size, alpha){
-    var rgb = particleColorRGB;
-    var col = 'rgba('+rgb.r+','+rgb.g+','+rgb.b+','+alpha+')';
-    var shape = p.shape;
-    ctx.save();
-    ctx.translate(p.x,p.y);
-    ctx.shadowColor = 'rgba('+rgb.r+','+rgb.g+','+rgb.b+',0.9)';
-    ctx.shadowBlur = size*2+3;
-    if(shape!=='text' && shape!=='rune' && shape!=='tracer') ctx.rotate(p.rot);
-
-    if(shape==='square'){
-        ctx.fillStyle=col;
-        ctx.fillRect(-size,-size,size*2,size*2);
-    }else if(shape==='star'){
-        ctx.fillStyle=col;
-        ctx.beginPath();
-        for(var i=0;i<10;i++){
-            var a1=(i*Math.PI)/5-Math.PI/2;
-            var r1= i%2===0 ? size*1.7 : size*0.7;
-            ctx.lineTo(Math.cos(a1)*r1, Math.sin(a1)*r1);
-        }
-        ctx.closePath();ctx.fill();
-    }else if(shape==='leaf'){
-        ctx.fillStyle=col;
-        ctx.beginPath();
-        ctx.ellipse(0,0,size*1.6,size*0.9,0,0,Math.PI*2);
-        ctx.fill();
-        ctx.strokeStyle='rgba(0,0,0,0.15)';
-        ctx.lineWidth=0.5;
-        ctx.beginPath();ctx.moveTo(-size*1.4,0);ctx.lineTo(size*1.4,0);ctx.stroke();
-    }else if(shape==='spark'){
-        ctx.strokeStyle=col;
-        ctx.lineWidth=1.5;
-        ctx.beginPath();
-        ctx.moveTo(-size*1.5,0);ctx.lineTo(size*1.5,0);
-        ctx.moveTo(0,-size*1.5);ctx.lineTo(0,size*1.5);
-        ctx.stroke();
-    }else if(shape==='tracer'){
-        var ang = Math.atan2(p.speedY, p.speedX || 0.001);
-        ctx.strokeStyle=col;
-        ctx.lineWidth=1.5;
-        ctx.beginPath();
-        ctx.moveTo(-Math.cos(ang)*size*2.5, -Math.sin(ang)*size*2.5);
-        ctx.lineTo(Math.cos(ang)*size*1.2, Math.sin(ang)*size*1.2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(Math.cos(ang)*size*1.2, Math.sin(ang)*size*1.2, size*0.5, 0, Math.PI*2);
-        ctx.fillStyle=col;ctx.fill();
-    }else if(shape==='glitch'){
-        ctx.fillStyle='rgba(255,0,90,0.5)';
-        ctx.fillRect(-size-1,-size,size*2,size*0.6);
-        ctx.fillStyle='rgba(0,255,255,0.5)';
-        ctx.fillRect(-size+1,-size*0.3,size*2,size*0.6);
-        ctx.fillStyle=col;
-        ctx.fillRect(-size,-size*0.6,size*2,size*0.6);
-    }else if(shape==='text' || shape==='rune'){
-        ctx.font=(shape==='rune'?'bold ':'')+(size*2)+'px monospace';
-        ctx.fillStyle=col;
-        ctx.fillText(p.text,0,0);
-    }else{
-        ctx.fillStyle=col;
-        ctx.beginPath();
-        ctx.arc(0,0,size,0,Math.PI*2);
-        ctx.fill();
-    }
-    ctx.restore();
-}
-
-function initMatrixRain(){
-    var colWidth = 16;
-    var cols = Math.ceil(canvas.width/colWidth)+1;
-    matrixCols = [];
-    for(var i=0;i<cols;i++){
-        matrixCols.push({y:Math.random()*-canvas.height, speed:2+Math.random()*3, len:5+Math.floor(Math.random()*14)});
-    }
-}
-initMatrixRain();
-
-function drawMatrixRain(){
-    var rgb = particleColorRGB;
-    ctx.fillStyle='rgba(2,8,2,0.12)';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.font='14px monospace';
-    for(var i=0;i<matrixCols.length;i++){
-        var c=matrixCols[i];
-        var x=i*16;
-        for(var k=0;k<c.len;k++){
-            var yy=c.y-k*16;
-            if(yy<0||yy>canvas.height) continue;
-            var alpha = k===0?1:Math.max(0,0.85-(k/c.len));
-            ctx.fillStyle= k===0 ? '#d6ffe0' : 'rgba('+rgb.r+','+rgb.g+','+rgb.b+','+alpha+')';
-            ctx.fillText(matrixChars[Math.floor(Math.random()*matrixChars.length)], x, yy);
-        }
-        c.y+=c.speed;
-        if(c.y-c.len*16>canvas.height){
-            c.y=Math.random()*-300;
-            c.speed=2+Math.random()*3;
-            c.len=5+Math.floor(Math.random()*14);
+    function initMatrixRain(){
+        var colWidth = 16;
+        var cols = Math.ceil(canvas.width/colWidth)+1;
+        matrixCols = [];
+        for(var i=0;i<cols;i++){
+            matrixCols.push({y:Math.random()*-canvas.height, speed:2+Math.random()*3, len:5+Math.floor(Math.random()*14)});
         }
     }
-}
+    initMatrixRain();
 
-function drawParticles(){
-    var theme = themeData.find(function(t){return t.id===currentTheme}) || themeData[0];
-    if(theme.rain && !manualShape){
-        drawMatrixRain();
-        requestAnimationFrame(drawParticles);
-        return;
-    }
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    var rgb = particleColorRGB;
-    for(var i=0;i<particles.length;i++){
-        var p=particles[i];
-        p.x+=p.speedX;
-        p.y+=p.speedY;
-        p.rot+=p.rotSpeed;
-        if(p.x<-10)p.x=canvas.width+10;
-        if(p.x>canvas.width+10)p.x=-10;
-        if(p.y<-10)p.y=canvas.height+10;
-        if(p.y>canvas.height+10)p.y=-10;
-        var dx=mouse.x-p.x,dy=mouse.y-p.y,dist=Math.sqrt(dx*dx+dy*dy);
-        if(dist<160){var force=(160-dist)/160;p.x-=dx*force*0.025;p.y-=dy*force*0.025}
-        p.pulse+=0.025;
-        var size=p.size+Math.sin(p.pulse)*0.5;
-        drawShape(p, size, 0.7);
-    }
-    ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba('+rgb.r+','+rgb.g+','+rgb.b+',0.12)';
-    ctx.lineWidth=0.8;
-    for(var i=0;i<particles.length;i++){
-        for(var j=i+1;j<particles.length;j++){
-            var dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,dist=Math.sqrt(dx*dx+dy*dy);
-            if(dist<120){
-                var alpha=(1-(dist/120))*0.3;
-                ctx.strokeStyle='rgba('+rgb.r+','+rgb.g+','+rgb.b+','+alpha+')';
-                ctx.beginPath();
-                ctx.moveTo(particles[i].x,particles[i].y);
-                ctx.lineTo(particles[j].x,particles[j].y);
-                ctx.stroke();
+    function drawMatrixRain(){
+        var rgb = particleColorRGB;
+        ctx.fillStyle='rgba(2,8,2,0.12)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.font='14px monospace';
+        for(var i=0;i<matrixCols.length;i++){
+            var c=matrixCols[i];
+            var x=i*16;
+            for(var k=0;k<c.len;k++){
+                var yy=c.y-k*16;
+                if(yy<0||yy>canvas.height) continue;
+                var alpha = k===0?1:Math.max(0,0.85-(k/c.len));
+                ctx.fillStyle= k===0 ? '#d6ffe0' : 'rgba('+rgb.r+','+rgb.g+','+rgb.b+','+alpha+')';
+                ctx.fillText(matrixChars[Math.floor(Math.random()*matrixChars.length)], x, yy);
+            }
+            c.y+=c.speed;
+            if(c.y-c.len*16>canvas.height){
+                c.y=Math.random()*-300;
+                c.speed=2+Math.random()*3;
+                c.len=5+Math.floor(Math.random()*14);
             }
         }
     }
-    requestAnimationFrame(drawParticles);
-}
-drawParticles();
 
-// ============================================================
-// HELPERS
-// ============================================================
-function hexToRgb(hex){
-    var r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return r ? {r:parseInt(r[1],16),g:parseInt(r[2],16),b:parseInt(r[3],16)} : {r:255,g:255,b:255};
-}
+    function drawParticles(){
+        var theme = themeData.find(function(t){return t.id===currentTheme}) || themeData[0];
+        if(theme.rain && !manualShape){
+            drawMatrixRain();
+            requestAnimationFrame(drawParticles);
+            return;
+        }
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        var rgb = particleColorRGB;
+        for(var i=0;i<particles.length;i++){
+            var p=particles[i];
+            p.x+=p.speedX;
+            p.y+=p.speedY;
+            p.rot+=p.rotSpeed;
+            if(p.x<-10)p.x=canvas.width+10;
+            if(p.x>canvas.width+10)p.x=-10;
+            if(p.y<-10)p.y=canvas.height+10;
+            if(p.y>canvas.height+10)p.y=-10;
+            var dx=mouse.x-p.x,dy=mouse.y-p.y,dist=Math.sqrt(dx*dx+dy*dy);
+            if(dist<160){var force=(160-dist)/160;p.x-=dx*force*0.025;p.y-=dy*force*0.025}
+            p.pulse+=0.025;
+            var size=p.size+Math.sin(p.pulse)*0.5;
+            drawShape(p, size, 0.7);
+        }
+        ctx.shadowBlur=0;
+        ctx.strokeStyle='rgba('+rgb.r+','+rgb.g+','+rgb.b+',0.12)';
+        ctx.lineWidth=0.8;
+        for(var i=0;i<particles.length;i++){
+            for(var j=i+1;j<particles.length;j++){
+                var dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,dist=Math.sqrt(dx*dx+dy*dy);
+                if(dist<120){
+                    var alpha=(1-(dist/120))*0.3;
+                    ctx.strokeStyle='rgba('+rgb.r+','+rgb.g+','+rgb.b+','+alpha+')';
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x,particles[i].y);
+                    ctx.lineTo(particles[j].x,particles[j].y);
+                    ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(drawParticles);
+    }
+    drawParticles();
 
-function rgbToHex(r,g,b){
-    return "#"+[r,g,b].map(function(c){return Math.min(255,Math.max(0,Math.round(c))).toString(16).padStart(2,"0")}).join("");
-}
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    function hexToRgb(hex){
+        var r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return r ? {r:parseInt(r[1],16),g:parseInt(r[2],16),b:parseInt(r[3],16)} : {r:255,g:255,b:255};
+    }
 
-function lerpColor(c1,c2,t){
-    var a=hexToRgb(c1),b=hexToRgb(c2);
-    return rgbToHex(a.r+(b.r-a.r)*t,a.g+(b.g-a.g)*t,a.b+(b.b-a.b)*t);
-}
+    function rgbToHex(r,g,b){
+        return "#"+[r,g,b].map(function(c){return Math.min(255,Math.max(0,Math.round(c))).toString(16).padStart(2,"0")}).join("");
+    }
 
-function getGradientColor(arr,ratio){
-    if(arr.length===1)return arr[0];
-    var total=arr.length-1,pos=ratio*total,idx=Math.min(Math.floor(pos),total-1);
-    return lerpColor(arr[idx],arr[idx+1],pos-idx);
-}
+    function lerpColor(c1,c2,t){
+        var a=hexToRgb(c1),b=hexToRgb(c2);
+        return rgbToHex(a.r+(b.r-a.r)*t,a.g+(b.g-a.g)*t,a.b+(b.b-a.b)*t);
+    }
 
-function showToast(msg){
-    var t=document.getElementById('toast');
-    t.textContent=msg;
-    t.classList.add('show');
-    clearTimeout(t._timeout);
-    t._timeout=setTimeout(function(){t.classList.remove('show')},2000);
-}
+    function getGradientColor(arr,ratio){
+        if(arr.length===1)return arr[0];
+        var total=arr.length-1,pos=ratio*total,idx=Math.min(Math.floor(pos),total-1);
+        return lerpColor(arr[idx],arr[idx+1],pos-idx);
+    }
 
-// ============================================================
-// LANGUAGES
-// ============================================================
-function renderLanguages(){
-    var bar = document.getElementById('langBar');
-    var html = '';
-    languages.forEach(function(lang){
-        var active = lang.code===currentLang ? ' active' : '';
-        html += '<button class="lang-btn'+active+'" onclick="setLanguage(\''+lang.code+'\')">';
-        html += '<span class="flag">'+lang.flag+'</span> '+lang.code.toUpperCase();
-        html += '</button>';
-    });
-    bar.innerHTML = html;
-}
-renderLanguages();
+    function showToast(msg){
+        var t=document.getElementById('toast');
+        t.textContent=msg;
+        t.classList.add('show');
+        clearTimeout(t._timeout);
+        t._timeout=setTimeout(function(){t.classList.remove('show')},2000);
+    }
 
-function setLanguage(code){
-    currentLang = code;
+    // ============================================================
+    // LANGUAGES
+    // ============================================================
+    function renderLanguages(){
+        var bar = document.getElementById('langBar');
+        var html = '';
+        languages.forEach(function(lang){
+            var active = lang.code===currentLang ? ' active' : '';
+            html += '<button class="lang-btn'+active+'" onclick="setLanguage(\''+lang.code+'\')">';
+            html += '<span class="flag">'+lang.flag+'</span> '+lang.code.toUpperCase();
+            html += '</button>';
+        });
+        bar.innerHTML = html;
+    }
     renderLanguages();
-    applyTranslations();
-}
 
-function applyTranslations(){
-    var t = translations[currentLang] || translations['en'];
-    document.querySelectorAll('[data-i18n]').forEach(function(el){
-        var key = el.getAttribute('data-i18n');
-        if(t[key]) el.textContent = t[key];
-    });
-}
-
-// ============================================================
-// THEME GRID
-// ============================================================
-function renderThemeGrid(){
-    var container = document.getElementById('themeGrid');
-    var html = '';
-    themeData.forEach(function(theme){
-        var active = theme.id===currentTheme ? ' active' : '';
-        html += '<div class="tdot'+active+'" style="background:'+theme.color+'25;border-color:'+theme.color+'40;color:'+theme.color+'" onclick="setTheme(\''+theme.id+'\')">';
-        html += '<span class="icon">'+theme.icon+'</span>';
-        html += '<span class="name" style="color:'+theme.color+'">'+theme.name+'</span>';
-        html += '</div>';
-    });
-    container.innerHTML = html;
-}
-
-function setTheme(id){
-    currentTheme=id;
-    var theme = themeData.find(function(t){return t.id===id});
-    if(!theme)return;
-    document.body.style.background = theme.bg;
-    document.body.style.backgroundAttachment = 'fixed';
-    document.getElementById('themeName').textContent = '✦ '+theme.name.toUpperCase()+' ✦';
-    document.getElementById('themeName').style.color = theme.color;
-    createParticles(particleCount);
-    renderThemeGrid();
-    showToast('Theme: '+theme.name);
-}
-
-// ============================================================
-// POINTER FUNCTIONS
-// ============================================================
-function setPointer(type){
-    currentPointer=type;
-    var body=document.body;
-    var classes = ['pointer-mace','pointer-sword','pointer-gun','pointer-crosshair','pointer-hacker','pointer-cyber','pointer-star','pointer-heart','pointer-fire','pointer-magic','pointer-crown','pointer-dragon','pointer-ghost','pointer-skull','pointer-cod'];
-    classes.forEach(function(c){body.classList.remove(c)});
-    if(type!=='default'){
-        body.classList.add('pointer-'+type);
+    function setLanguage(code){
+        currentLang = code;
+        renderLanguages();
+        applyTranslations();
     }
-    document.querySelectorAll('.pointer-box .pbtn').forEach(function(b){b.classList.remove('active')});
-    var btns=document.querySelectorAll('.pointer-box .pbtn');
-    var types=['default','mace','sword','gun','crosshair','hacker','cyber','star','heart','fire','magic','crown','dragon','ghost','skull','cod'];
-    var idx=types.indexOf(type);
-    if(btns[idx])btns[idx].classList.add('active');
-    showToast('Pointer: '+type);
-}
 
-// ============================================================
-// SMALL TEXT
-// ============================================================
-function convertToSmallText() {
-    var text = document.getElementById('textInput').value || ' ';
-    var preview = document.getElementById('previewText');
-    fontSize = parseInt(document.getElementById('fontSizeSlider').value);
-    document.getElementById('sizeLabel').textContent = fontSize + 'px';
-    
-    var smallMap = {
-        'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'s','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ',
-        'A':'ᴀ','B':'ʙ','C':'ᴄ','D':'ᴅ','E':'ᴇ','F':'ꜰ','G':'ɢ','H':'ʜ','I':'ɪ','J':'ᴊ','K':'ᴋ','L':'ʟ','M':'ᴍ','N':'ɴ','O':'ᴏ','P':'ᴘ','Q':'ǫ','R':'ʀ','S':'s','T':'ᴛ','U':'ᴜ','V':'ᴠ','W':'ᴡ','X':'x','Y':'ʏ','Z':'ᴢ'
-    };
-    
-    var result = '';
-    for (var i = 0; i < text.length; i++) {
-        var char = text[i];
-        if (smallMap[char]) {
-            result += smallMap[char];
-        } else {
-            result += char;
+    function applyTranslations(){
+        var t = translations[currentLang] || translations['en'];
+        document.querySelectorAll('[data-i18n]').forEach(function(el){
+            var key = el.getAttribute('data-i18n');
+            if(t[key]) el.textContent = t[key];
+        });
+    }
+
+    // ============================================================
+    // THEME GRID
+    // ============================================================
+    function renderThemeGrid(){
+        var container = document.getElementById('themeGrid');
+        var html = '';
+        themeData.forEach(function(theme){
+            var active = theme.id===currentTheme ? ' active' : '';
+            html += '<div class="tdot'+active+'" style="background:'+theme.color+'25;border-color:'+theme.color+'40;color:'+theme.color+'" onclick="setTheme(\''+theme.id+'\')">';
+            html += '<span class="icon">'+theme.icon+'</span>';
+            html += '<span class="name" style="color:'+theme.color+'">'+theme.name+'</span>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
+    }
+
+    function setTheme(id){
+        currentTheme=id;
+        var theme = themeData.find(function(t){return t.id===id});
+        if(!theme)return;
+        document.body.style.background = theme.bg;
+        document.body.style.backgroundAttachment = 'fixed';
+        document.getElementById('themeName').textContent = '✦ '+theme.name.toUpperCase()+' ✦';
+        document.getElementById('themeName').style.color = theme.color;
+        createParticles(particleCount);
+        renderThemeGrid();
+        showToast('Theme: '+theme.name);
+    }
+
+    // ============================================================
+    // POINTER FUNCTIONS
+    // ============================================================
+    function setPointer(type){
+        currentPointer=type;
+        var body=document.body;
+        var classes = ['pointer-mace','pointer-sword','pointer-gun','pointer-crosshair','pointer-hacker','pointer-cyber','pointer-star','pointer-heart','pointer-fire','pointer-magic','pointer-crown','pointer-dragon','pointer-ghost','pointer-skull','pointer-cod'];
+        classes.forEach(function(c){body.classList.remove(c)});
+        if(type!=='default'){
+            body.classList.add('pointer-'+type);
         }
+        document.querySelectorAll('.pointer-box .pbtn').forEach(function(b){b.classList.remove('active')});
+        var btns=document.querySelectorAll('.pointer-box .pbtn');
+        var types=['default','mace','sword','gun','crosshair','hacker','cyber','star','heart','fire','magic','crown','dragon','ghost','skull','cod'];
+        var idx=types.indexOf(type);
+        if(btns[idx])btns[idx].classList.add('active');
+        showToast('Pointer: '+type);
     }
-    
-    preview.textContent = result;
-    preview.style.fontFamily = "Arial, sans-serif";
-    preview.style.fontSize = fontSize + 'px';
-    preview.style.color = '#ffffff';
-    preview.style.background = 'transparent';
-    preview.style.webkitBackgroundClip = '';
-    preview.style.webkitTextFillColor = '';
-}
 
-// ============================================================
-// MAIN FUNCTIONS
-// ============================================================
-function switchTab(tab){
-    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
-    document.querySelector('.tab[onclick="switchTab(\''+tab+'\')"]').classList.add('active');
-    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-    document.getElementById('page-'+tab).classList.add('active');
-}
-
-function setMode(mode){
-    currentMode=mode;
-    document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.remove('active')});
-    var btns=document.querySelectorAll('.mode-btn');
-    var modes=['font','color','gradient'];
-    var idx=modes.indexOf(mode);
-    if(btns[idx])btns[idx].classList.add('active');
-    updatePreview();
-}
-
-function renderColors(){
-    var container=document.getElementById('colorList');
-    var html='';
-    for(var i=0;i<colors.length;i++){
-        var c=colors[i];
-        html+='<div class="color-row">';
-        html+='<input type="color" value="'+c.color+'" onchange="updateColor('+c.id+', this.value)">';
-        html+='<input type="text" value="'+c.color+'" oninput="updateColor('+c.id+', this.value)">';
-        html+='<button onclick="removeColor('+c.id+')">✕</button>';
-        html+='</div>';
-    }
-    container.innerHTML=html;
-}
-
-function addColor(){
-    var last=colors.length>0?colors[colors.length-1].color:"#ffffff";
-    colors.push({id:colorIdCounter++,color:last});
-    renderColors();
-    updatePreview();
-}
-
-function removeColor(id){
-    if(colors.length<=2)return;
-    colors=colors.filter(function(c){return c.id!==id});
-    renderColors();
-    updatePreview();
-}
-
-function updateColor(id,val){
-    for(var i=0;i<colors.length;i++){if(colors[i].id===id){colors[i].color=val;break}}
-    renderColors();
-    updatePreview();
-}
-
-function resetColors(){
-    colors=JSON.parse(JSON.stringify(defaultColors));
-    colorIdCounter=colors.length+1;
-    renderColors();
-    updatePreview();
-}
-
-function reverseColors(){
-    colors=colors.reverse();
-    renderColors();
-    updatePreview();
-}
-
-function randomizeColors(){
-    colors=colors.map(function(c){return{id:c.id,color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')}});
-    renderColors();
-    updatePreview();
-}
-
-function resetAll(){
-    resetColors();
-    resetFont();
-    resetSize();
-    setMode('font');
-    setTheme('hacker');
-    showToast('Reset All');
-}
-
-function renderFonts(){
-    var container=document.getElementById('fontList');
-    var html='';
-    for(var i=0;i<fonts.length;i++){
-        var f=fonts[i];
-        var active=(selectedFontName===f)?' active':'';
-        html+='<div class="font-item'+active+'" onclick="selectFont(\''+f+'\')">';
-        html+='<span class="fname" style="font-family:\''+f+'\',sans-serif">'+f+'</span>';
-        html+='</div>';
-    }
-    container.innerHTML=html;
-    document.getElementById('currentFontLabel').textContent=selectedFontName;
-}
-
-function selectFont(f) {
-    if (f === "Small Text") {
-        selectedFont = "Arial, sans-serif";
-        selectedFontName = "Small Text";
-        renderFonts();
-        convertToSmallText();
-        return;
-    }
-    selectedFont = "'"+f+"', sans-serif";
-    selectedFontName = f;
-    renderFonts();
-    updatePreview();
-}
-
-function resetFont(){selectedFont="Arial, sans-serif";selectedFontName="Arial";renderFonts();updatePreview()}
-function resetSize(){fontSize=28;document.getElementById('fontSizeSlider').value=28;document.getElementById('sizeLabel').textContent='28px';updatePreview()}
-
-function updatePreview() {
-    var text = document.getElementById('textInput').value || ' ';
-    var preview = document.getElementById('previewText');
-    fontSize = parseInt(document.getElementById('fontSizeSlider').value);
-    document.getElementById('sizeLabel').textContent = fontSize + 'px';
-    
-    // ===== Small Text =====
-    if (selectedFontName === "Small Text") {
-        convertToSmallText();
-        return;
-    }
-    
-    if (text.trim() === '') {
-        preview.textContent = ' ';
-        preview.style.fontFamily = selectedFont;
-        preview.style.fontSize = fontSize + 'px';
-        preview.style.color = '#fff';
-        return;
-    }
-    
-    var chars = text.split('');
-    var colorValues = colors.map(function(c){return c.color});
-    var total = chars.length;
-    var html = '';
-    
-    if (currentMode === 'gradient') {
-        preview.style.background = 'linear-gradient(135deg,' + colorValues.join(',') + ')';
-        preview.style.webkitBackgroundClip = 'text';
-        preview.style.webkitTextFillColor = 'transparent';
-        preview.style.backgroundClip = 'text';
-        preview.textContent = text;
-        preview.style.fontFamily = selectedFont;
-        preview.style.fontSize = fontSize + 'px';
-        return;
-    }
-    
-    preview.style.background = 'transparent';
-    preview.style.webkitTextFillColor = '';
-    preview.style.backgroundClip = '';
-    
-    for (var i = 0; i < total; i++) {
-        if (chars[i] === ' ') { html += ' '; continue; }
-        if (currentMode === 'font') {
-            html += '<span style="color:#ffffff">' + chars[i] + '</span>';
-        } else {
-            var ratio = total > 1 ? i/(total-1) : 0;
-            html += '<span style="color:' + getGradientColor(colorValues, ratio) + '">' + chars[i] + '</span>';
-        }
-    }
-    
-    preview.innerHTML = html;
-    preview.style.fontFamily = selectedFont;
-    preview.style.fontSize = fontSize + 'px';
-}
-
-function saveColor(){
-    var text=document.getElementById('textInput').value||' ';
-    var colorData=colors.map(function(c){return c.color});
-    savedItems.unshift({id:Date.now(),text:text,colors:colorData,font:selectedFont,fontName:selectedFontName,size:fontSize,mode:currentMode});
-    localStorage.setItem('nyxcolor_saved',JSON.stringify(savedItems));
-    document.getElementById('saveCount').textContent='💾 '+savedItems.length+' saved';
-    renderSaved();
-    showToast('Saved!');
-    var btn=document.querySelector('.btn-success');
-    var orig=btn.textContent;
-    btn.textContent='✅ Saved!';
-    setTimeout(function(){btn.textContent=orig},1200);
-}
-
-function copyCode() {
-    var text = document.getElementById('textInput').value || ' ';
-    var font = selectedFontName;
-    var result = text;
-    
-    // ===== اگر Small Text هست =====
-    if (font === "Small Text") {
+    // ============================================================
+    // SMALL TEXT
+    // ============================================================
+    function convertToSmallText() {
+        var text = document.getElementById('textInput').value || ' ';
+        var preview = document.getElementById('previewText');
+        fontSize = parseInt(document.getElementById('fontSizeSlider').value);
+        document.getElementById('sizeLabel').textContent = fontSize + 'px';
+        
         var smallMap = {
             'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'s','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ',
             'A':'ᴀ','B':'ʙ','C':'ᴄ','D':'ᴅ','E':'ᴇ','F':'ꜰ','G':'ɢ','H':'ʜ','I':'ɪ','J':'ᴊ','K':'ᴋ','L':'ʟ','M':'ᴍ','N':'ɴ','O':'ᴏ','P':'ᴘ','Q':'ǫ','R':'ʀ','S':'s','T':'ᴛ','U':'ᴜ','V':'ᴠ','W':'ᴡ','X':'x','Y':'ʏ','Z':'ᴢ'
         };
-        var converted = '';
+        
+        var result = '';
         for (var i = 0; i < text.length; i++) {
             var char = text[i];
-            converted += smallMap[char] || char;
+            if (smallMap[char]) {
+                result += smallMap[char];
+            } else {
+                result += char;
+            }
         }
-        result = converted;
+        
+        preview.textContent = result;
+        preview.style.fontFamily = "Arial, sans-serif";
+        preview.style.fontSize = fontSize + 'px';
+        preview.style.color = '#ffffff';
+        preview.style.background = 'transparent';
+        preview.style.webkitBackgroundClip = '';
+        preview.style.webkitTextFillColor = '';
     }
-    // ===== برای فونت‌های دیگه =====
-    else {
-        // با استفاده از Unicode Mathematical Bold/Script
-        var fontMap = {
+
+    // ============================================================
+    // MAIN FUNCTIONS
+    // ============================================================
+    function switchTab(tab){
+        document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+        document.querySelector('.tab[onclick="switchTab(\''+tab+'\')"]').classList.add('active');
+        document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+        document.getElementById('page-'+tab).classList.add('active');
+    }
+
+    function setMode(mode){
+        currentMode=mode;
+        document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.remove('active')});
+        var btns=document.querySelectorAll('.mode-btn');
+        var modes=['font','color','gradient'];
+        var idx=modes.indexOf(mode);
+        if(btns[idx])btns[idx].classList.add('active');
+        updatePreview();
+    }
+
+    function renderColors(){
+        var container=document.getElementById('colorList');
+        var html='';
+        for(var i=0;i<colors.length;i++){
+            var c=colors[i];
+            html+='<div class="color-row">';
+            html+='<input type="color" value="'+c.color+'" onchange="updateColor('+c.id+', this.value)">';
+            html+='<input type="text" value="'+c.color+'" oninput="updateColor('+c.id+', this.value)">';
+            html+='<button onclick="removeColor('+c.id+')">✕</button>';
+            html+='</div>';
+        }
+        container.innerHTML=html;
+    }
+
+    function addColor(){
+        var last=colors.length>0?colors[colors.length-1].color:"#ffffff";
+        colors.push({id:colorIdCounter++,color:last});
+        renderColors();
+        updatePreview();
+    }
+
+    function removeColor(id){
+        if(colors.length<=2)return;
+        colors=colors.filter(function(c){return c.id!==id});
+        renderColors();
+        updatePreview();
+    }
+
+    function updateColor(id,val){
+        for(var i=0;i<colors.length;i++){if(colors[i].id===id){colors[i].color=val;break}}
+        renderColors();
+        updatePreview();
+    }
+
+    function resetColors(){
+        colors=JSON.parse(JSON.stringify(defaultColors));
+        colorIdCounter=colors.length+1;
+        renderColors();
+        updatePreview();
+    }
+
+    function reverseColors(){
+        colors=colors.reverse();
+        renderColors();
+        updatePreview();
+    }
+
+    function randomizeColors(){
+        colors=colors.map(function(c){return{id:c.id,color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')}});
+        renderColors();
+        updatePreview();
+    }
+
+    function resetAll(){
+        resetColors();
+        resetFont();
+        resetSize();
+        setMode('font');
+        setTheme('hacker');
+        showToast('Reset All');
+    }
+
+    function renderFonts(){
+        var container=document.getElementById('fontList');
+        var html='';
+        for(var i=0;i<fonts.length;i++){
+            var f=fonts[i];
+            var active=(selectedFontName===f)?' active':'';
+            html+='<div class="font-item'+active+'" onclick="selectFont(\''+f+'\')">';
+            html+='<span class="fname" style="font-family:\''+f+'\',sans-serif">'+f+'</span>';
+            html+='</div>';
+        }
+        container.innerHTML=html;
+        document.getElementById('currentFontLabel').textContent=selectedFontName;
+    }
+
+    function selectFont(f){
+        if (f === "Small Text") {
+            selectedFont = "Arial, sans-serif";
+            selectedFontName = "Small Text";
+            renderFonts();
+            convertToSmallText();
+            return;
+        }
+        selectedFont = "'"+f+"', sans-serif";
+        selectedFontName = f;
+        renderFonts();
+        updatePreview();
+    }
+
+    function resetFont(){selectedFont="Arial, sans-serif";selectedFontName="Arial";renderFonts();updatePreview()}
+    function resetSize(){fontSize=28;document.getElementById('fontSizeSlider').value=28;document.getElementById('sizeLabel').textContent='28px';updatePreview()}
+
+    function updatePreview(){
+        var text = document.getElementById('textInput').value || ' ';
+        var preview = document.getElementById('previewText');
+        fontSize = parseInt(document.getElementById('fontSizeSlider').value);
+        document.getElementById('sizeLabel').textContent = fontSize + 'px';
+        
+        // ===== Small Text =====
+        if (selectedFontName === "Small Text") {
+            convertToSmallText();
+            return;
+        }
+        
+        if (text.trim() === '') {
+            preview.textContent = ' ';
+            preview.style.fontFamily = selectedFont;
+            preview.style.fontSize = fontSize + 'px';
+            preview.style.color = '#fff';
+            return;
+        }
+        
+        var chars = text.split('');
+        var colorValues = colors.map(function(c){return c.color});
+        var total = chars.length;
+        var html = '';
+        
+        if (currentMode === 'gradient') {
+            preview.style.background = 'linear-gradient(135deg,' + colorValues.join(',') + ')';
+            preview.style.webkitBackgroundClip = 'text';
+            preview.style.webkitTextFillColor = 'transparent';
+            preview.style.backgroundClip = 'text';
+            preview.textContent = text;
+            preview.style.fontFamily = selectedFont;
+            preview.style.fontSize = fontSize + 'px';
+            return;
+        }
+        
+        preview.style.background = 'transparent';
+        preview.style.webkitTextFillColor = '';
+        preview.style.backgroundClip = '';
+        
+        for (var i = 0; i < total; i++) {
+            if (chars[i] === ' ') { html += ' '; continue; }
+            if (currentMode === 'font') {
+                html += '<span style="color:#ffffff">' + chars[i] + '</span>';
+            } else {
+                var ratio = total > 1 ? i/(total-1) : 0;
+                html += '<span style="color:' + getGradientColor(colorValues, ratio) + '">' + chars[i] + '</span>';
+            }
+        }
+        
+        preview.innerHTML = html;
+        preview.style.fontFamily = selectedFont;
+        preview.style.fontSize = fontSize + 'px';
+    }
+
+    function saveColor(){
+        var text=document.getElementById('textInput').value||' ';
+        var colorData=colors.map(function(c){return c.color});
+        savedItems.unshift({id:Date.now(),text:text,colors:colorData,font:selectedFont,fontName:selectedFontName,size:fontSize,mode:currentMode});
+        localStorage.setItem('nyxcolor_saved',JSON.stringify(savedItems));
+        document.getElementById('saveCount').textContent='💾 '+savedItems.length+' saved';
+        renderSaved();
+        showToast('Saved!');
+        var btn=document.querySelector('.btn-success');
+        var orig=btn.textContent;
+        btn.textContent='✅ Saved!';
+        setTimeout(function(){btn.textContent=orig},1200);
+    }
+
+    function copyCode() {
+        var text = document.getElementById('textInput').value || ' ';
+        var font = selectedFontName;
+        var result = text;
+        
+        // ===== نقشه فونت‌ها =====
+        var fontMaps = {
+            'Small Text': {
+                'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'s','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ',
+                'A':'ᴀ','B':'ʙ','C':'ᴄ','D':'ᴅ','E':'ᴇ','F':'ꜰ','G':'ɢ','H':'ʜ','I':'ɪ','J':'ᴊ','K':'ᴋ','L':'ʟ','M':'ᴍ','N':'ɴ','O':'ᴏ','P':'ᴘ','Q':'ǫ','R':'ʀ','S':'s','T':'ᴛ','U':'ᴜ','V':'ᴠ','W':'ᴡ','X':'x','Y':'ʏ','Z':'ᴢ'
+            },
             'Script': {
                 'A':'𝓐','B':'𝓑','C':'𝓒','D':'𝓓','E':'𝓔','F':'𝓕','G':'𝓖','H':'𝓗','I':'𝓘','J':'𝓙','K':'𝓚','L':'𝓛','M':'𝓜','N':'𝓝','O':'𝓞','P':'𝓟','Q':'𝓠','R':'𝓡','S':'𝓢','T':'𝓣','U':'𝓤','V':'𝓥','W':'𝓦','X':'𝓧','Y':'𝓨','Z':'𝓩',
                 'a':'𝓪','b':'𝓫','c':'𝓬','d':'𝓭','e':'𝓮','f':'𝓯','g':'𝓰','h':'𝓱','i':'𝓲','j':'𝓳','k':'𝓴','l':'𝓵','m':'𝓶','n':'𝓷','o':'𝓸','p':'𝓹','q':'𝓺','r':'𝓻','s':'𝓼','t':'𝓽','u':'𝓾','v':'𝓿','w':'𝔀','x':'𝔁','y':'𝔂','z':'𝔃'
@@ -1077,16 +1066,18 @@ function copyCode() {
             }
         };
         
-        // انتخاب نوع فونت
-        var fontType = 'Default';
-        if (font.includes('Script') || font.includes('cursive') || font.includes('Pacifico') || font.includes('Dancing') || font.includes('Lobster')) {
-            fontType = 'Script';
-        } else if (font.includes('Bold') || font.includes('Black') || font.includes('Heavy') || font.includes('Bangers')) {
-            fontType = 'Bold';
+        // ===== انتخاب نقشه مناسب =====
+        var map = null;
+        if (font === "Small Text") {
+            map = fontMaps['Small Text'];
+        } else if (font.includes('Script') || font.includes('cursive') || font.includes('Pacifico') || font.includes('Lobster') || font.includes('Dancing') || font.includes('Segoe Script')) {
+            map = fontMaps['Script'];
+        } else if (font.includes('Bold') || font.includes('Black') || font.includes('Heavy') || font.includes('Bangers') || font.includes('Fredoka')) {
+            map = fontMaps['Bold'];
         }
         
-        if (fontType !== 'Default' && fontMap[fontType]) {
-            var map = fontMap[fontType];
+        // ===== تبدیل متن =====
+        if (map) {
             var converted = '';
             for (var i = 0; i < text.length; i++) {
                 var char = text[i];
@@ -1094,162 +1085,161 @@ function copyCode() {
             }
             result = converted;
         }
+        
+        navigator.clipboard.writeText(result).then(function() {
+            var badge = document.getElementById('copiedBadge');
+            badge.classList.add('show');
+            clearTimeout(copiedTimeout);
+            copiedTimeout = setTimeout(function(){badge.classList.remove('show')},1800);
+            copyCount++;
+            localStorage.setItem('nyxcolor_copies',copyCount);
+            document.getElementById('copyCount').textContent = '📋 '+copyCount+' copies';
+            showToast('✅ Copied!');
+        });
     }
-    
-    navigator.clipboard.writeText(result).then(function() {
-        var badge = document.getElementById('copiedBadge');
-        badge.classList.add('show');
-        clearTimeout(copiedTimeout);
-        copiedTimeout = setTimeout(function(){badge.classList.remove('show')},1800);
-        copyCount++;
-        localStorage.setItem('nyxcolor_copies',copyCount);
-        document.getElementById('copyCount').textContent = '📋 '+copyCount+' copies';
-        showToast('✅ Copied!');
-    });
-}
 
-function renderSaved(){
-    var grid=document.getElementById('savedGrid');
-    if(savedItems.length===0){grid.innerHTML='<div class="empty-state">🎨 Nothing saved yet</div>';return}
-    var html='';
-    for(var idx=0;idx<savedItems.length;idx++){
-        var item=savedItems[idx];
-        var chars=(item.text||' ').split('');
-        var colorsArray=item.colors||['#8b5cf6','#ec4899'];
-        var total=chars.length;
-        var size=item.size||28;
-        var mode=item.mode||'font';
-        var font=item.font||'Arial, sans-serif';
-        var fontName=item.fontName||'Arial';
-        var ph='';
-        if(mode==='gradient'){ph=item.text}else{
-            for(var i=0;i<total;i++){if(chars[i]===' '){ph+=' ';continue}if(mode==='font'){ph+='<span style="color:#ffffff">'+chars[i]+'</span>'}else{var ratio=total>1?i/(total-1):0;ph+='<span style="color:'+getGradientColor(colorsArray,ratio)+'">'+chars[i]+'</span>'}}
+    function renderSaved(){
+        var grid=document.getElementById('savedGrid');
+        if(savedItems.length===0){grid.innerHTML='<div class="empty-state">🎨 Nothing saved yet</div>';return}
+        var html='';
+        for(var idx=0;idx<savedItems.length;idx++){
+            var item=savedItems[idx];
+            var chars=(item.text||' ').split('');
+            var colorsArray=item.colors||['#8b5cf6','#ec4899'];
+            var total=chars.length;
+            var size=item.size||28;
+            var mode=item.mode||'font';
+            var font=item.font||'Arial, sans-serif';
+            var fontName=item.fontName||'Arial';
+            var ph='';
+            if(mode==='gradient'){ph=item.text}else{
+                for(var i=0;i<total;i++){if(chars[i]===' '){ph+=' ';continue}if(mode==='font'){ph+='<span style="color:#ffffff">'+chars[i]+'</span>'}else{var ratio=total>1?i/(total-1):0;ph+='<span style="color:'+getGradientColor(colorsArray,ratio)+'">'+chars[i]+'</span>'}}
+            }
+            var bar=colorsArray.map(function(c){return'<span style="background:'+c+'"></span>'}).join('');
+            var gradientStyle=(mode==='gradient')?'background:linear-gradient(135deg,'+colorsArray.join(',')+');-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;':'';
+            html+='<div class="saved-item">';
+            html+='<div class="sp" style="font-family:'+font+';font-size:'+size+'px;'+gradientStyle+'">'+ph+'</div>';
+            html+='<div class="color-bar">'+bar+'</div>';
+            html+='<div class="si">'+fontName+' • '+size+'px • '+mode+'</div>';
+            html+='<div class="actions">';
+            html+='<button class="apply-btn" onclick="applySaved('+idx+')">Apply</button>';
+            html+='<button class="delete-btn" onclick="deleteSaved('+idx+')">✕</button>';
+            html+='</div></div>';
         }
-        var bar=colorsArray.map(function(c){return'<span style="background:'+c+'"></span>'}).join('');
-        var gradientStyle=(mode==='gradient')?'background:linear-gradient(135deg,'+colorsArray.join(',')+');-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;':'';
-        html+='<div class="saved-item">';
-        html+='<div class="sp" style="font-family:'+font+';font-size:'+size+'px;'+gradientStyle+'">'+ph+'</div>';
-        html+='<div class="color-bar">'+bar+'</div>';
-        html+='<div class="si">'+fontName+' • '+size+'px • '+mode+'</div>';
-        html+='<div class="actions">';
-        html+='<button class="apply-btn" onclick="applySaved('+idx+')">Apply</button>';
-        html+='<button class="delete-btn" onclick="deleteSaved('+idx+')">✕</button>';
-        html+='</div></div>';
+        grid.innerHTML=html;
     }
-    grid.innerHTML=html;
-}
 
-function applySaved(idx){
-    var item=savedItems[idx];
-    document.getElementById('textInput').value=item.text||' ';
-    colors=item.colors.map(function(c){return{id:colorIdCounter++,color:c}});
+    function applySaved(idx){
+        var item=savedItems[idx];
+        document.getElementById('textInput').value=item.text||' ';
+        colors=item.colors.map(function(c){return{id:colorIdCounter++,color:c}});
+        renderColors();
+        if(item.font){selectedFont=item.font;selectedFontName=item.fontName||'Arial';renderFonts()}
+        if(item.size){fontSize=item.size;document.getElementById('fontSizeSlider').value=fontSize;document.getElementById('sizeLabel').textContent=fontSize+'px'}
+        if(item.mode)setMode(item.mode);
+        updatePreview();
+        switchTab('home');
+        showToast('Applied!');
+    }
+
+    function deleteSaved(idx){savedItems.splice(idx,1);localStorage.setItem('nyxcolor_saved',JSON.stringify(savedItems));renderSaved()}
+    function clearAll(){if(savedItems.length===0)return;if(confirm('Delete all saved?')){savedItems=[];localStorage.setItem('nyxcolor_saved',JSON.stringify(savedItems));renderSaved();showToast('Cleared!')}}
+
+    function updateOpacity(){
+        var val=document.getElementById('opacitySlider').value;
+        document.getElementById('app').style.opacity=val;
+    }
+
+    // ============================================================
+    // PALETTE
+    // ============================================================
+    var paletteColors = [
+        '#ff0000','#ff4500','#ff8c00','#ffd700','#ffff00','#adff2f','#00ff00','#00fa9a','#00ced1','#1e90ff',
+        '#0000ff','#8a2be2','#ff00ff','#ff1493','#ff69b4','#ffb6c1','#f5deb3','#d2b48c','#cd853f','#8b4513',
+        '#2f4f4f','#708090','#a9a9a9','#dcdcdc','#ffffff','#000000','#1a1a1a','#2d2d2d','#4a4a4a','#6b6b6b',
+        '#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#d946ef','#06b6d4','#f472b6'
+    ];
+
+    function renderPalette(){
+        var container=document.getElementById('colorPalette');
+        var html='';
+        for(var i=0;i<paletteColors.length;i++){
+            html+='<div class="c" style="background:'+paletteColors[i]+'" onclick="applyPaletteColor(\''+paletteColors[i]+'\')" title="'+paletteColors[i]+'"></div>';
+        }
+        container.innerHTML=html;
+    }
+    renderPalette();
+
+    function applyPaletteColor(color){
+        if(colors.length>=8){colors.shift()}
+        colors.push({id:colorIdCounter++,color:color});
+        renderColors();
+        updatePreview();
+        showToast('Color: '+color);
+    }
+
+    function convertHex(){
+        var hex=document.getElementById('hexInput').value.trim();
+        if(!hex.startsWith('#'))hex='#'+hex;
+        var rgb=hexToRgb(hex);
+        if(rgb&&rgb.r!==undefined){document.getElementById('rgbOutput').value='rgb('+rgb.r+','+rgb.g+','+rgb.b+')'}
+    }
+
+    function convertRgb(){
+        var val=document.getElementById('rgbInput').value.trim();
+        var parts=val.split(',').map(function(s){return parseInt(s.trim())});
+        if(parts.length===3&&parts.every(function(n){return!isNaN(n)&&n>=0&&n<=255})){
+            document.getElementById('hexOutput').value=rgbToHex(parts[0],parts[1],parts[2]);
+        }
+    }
+
+    function uploadBg(e){
+        var file=e.target.files[0];
+        if(!file)return;
+        var reader=new FileReader();
+        reader.onload=function(ev){
+            document.body.style.backgroundImage='url('+ev.target.result+')';
+            document.body.style.backgroundSize='cover';
+            document.body.style.backgroundPosition='center';
+            document.body.style.backgroundAttachment='fixed';
+            document.body.style.backgroundBlendMode='multiply';
+            document.body.style.backgroundColor='rgba(0,0,0,0.4)';
+            showToast('Background updated!');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ============================================================
+    // CLICK SOUND
+    // ============================================================
+    document.addEventListener('click', function(e){
+        if(e.target.closest('.pointer-box')) return;
+        playClickSound(currentPointer);
+    });
+
+    // ============================================================
+    // KEYBOARD SHORTCUTS
+    // ============================================================
+    document.addEventListener('keydown',function(e){
+        if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveColor()}
+        if((e.ctrlKey||e.metaKey)&&e.key==='c'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){e.preventDefault();copyCode()}
+        if(e.key==='='||e.key==='+'){if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){fontSize=Math.min(80,fontSize+2);document.getElementById('fontSizeSlider').value=fontSize;updatePreview()}}
+        if(e.key==='-'){if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){fontSize=Math.max(8,fontSize-2);document.getElementById('fontSizeSlider').value=fontSize;updatePreview()}}
+    });
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    document.getElementById('copyCount').textContent='📋 '+copyCount+' copies';
+    document.getElementById('saveCount').textContent='💾 '+savedItems.length+' saved';
+    document.getElementById('themeCount').textContent='🎨 '+themeData.length+' themes';
     renderColors();
-    if(item.font){selectedFont=item.font;selectedFontName=item.fontName||'Arial';renderFonts()}
-    if(item.size){fontSize=item.size;document.getElementById('fontSizeSlider').value=fontSize;document.getElementById('sizeLabel').textContent=fontSize+'px'}
-    if(item.mode)setMode(item.mode);
+    renderFonts();
+    renderSaved();
     updatePreview();
-    switchTab('home');
-    showToast('Applied!');
-}
-
-function deleteSaved(idx){savedItems.splice(idx,1);localStorage.setItem('nyxcolor_saved',JSON.stringify(savedItems));renderSaved()}
-function clearAll(){if(savedItems.length===0)return;if(confirm('Delete all saved?')){savedItems=[];localStorage.setItem('nyxcolor_saved',JSON.stringify(savedItems));renderSaved();showToast('Cleared!')}}
-
-function updateOpacity(){
-    var val=document.getElementById('opacitySlider').value;
-    document.getElementById('app').style.opacity=val;
-}
-
-// ============================================================
-// PALETTE
-// ============================================================
-var paletteColors = [
-    '#ff0000','#ff4500','#ff8c00','#ffd700','#ffff00','#adff2f','#00ff00','#00fa9a','#00ced1','#1e90ff',
-    '#0000ff','#8a2be2','#ff00ff','#ff1493','#ff69b4','#ffb6c1','#f5deb3','#d2b48c','#cd853f','#8b4513',
-    '#2f4f4f','#708090','#a9a9a9','#dcdcdc','#ffffff','#000000','#1a1a1a','#2d2d2d','#4a4a4a','#6b6b6b',
-    '#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#d946ef','#06b6d4','#f472b6'
-];
-
-function renderPalette(){
-    var container=document.getElementById('colorPalette');
-    var html='';
-    for(var i=0;i<paletteColors.length;i++){
-        html+='<div class="c" style="background:'+paletteColors[i]+'" onclick="applyPaletteColor(\''+paletteColors[i]+'\')" title="'+paletteColors[i]+'"></div>';
-    }
-    container.innerHTML=html;
-}
-renderPalette();
-
-function applyPaletteColor(color){
-    if(colors.length>=8){colors.shift()}
-    colors.push({id:colorIdCounter++,color:color});
-    renderColors();
-    updatePreview();
-    showToast('Color: '+color);
-}
-
-function convertHex(){
-    var hex=document.getElementById('hexInput').value.trim();
-    if(!hex.startsWith('#'))hex='#'+hex;
-    var rgb=hexToRgb(hex);
-    if(rgb&&rgb.r!==undefined){document.getElementById('rgbOutput').value='rgb('+rgb.r+','+rgb.g+','+rgb.b+')'}
-}
-
-function convertRgb(){
-    var val=document.getElementById('rgbInput').value.trim();
-    var parts=val.split(',').map(function(s){return parseInt(s.trim())});
-    if(parts.length===3&&parts.every(function(n){return!isNaN(n)&&n>=0&&n<=255})){
-        document.getElementById('hexOutput').value=rgbToHex(parts[0],parts[1],parts[2]);
-    }
-}
-
-function uploadBg(e){
-    var file=e.target.files[0];
-    if(!file)return;
-    var reader=new FileReader();
-    reader.onload=function(ev){
-        document.body.style.backgroundImage='url('+ev.target.result+')';
-        document.body.style.backgroundSize='cover';
-        document.body.style.backgroundPosition='center';
-        document.body.style.backgroundAttachment='fixed';
-        document.body.style.backgroundBlendMode='multiply';
-        document.body.style.backgroundColor='rgba(0,0,0,0.4)';
-        showToast('Background updated!');
-    };
-    reader.readAsDataURL(file);
-}
-
-// ============================================================
-// CLICK SOUND
-// ============================================================
-document.addEventListener('click', function(e){
-    if(e.target.closest('.pointer-box')) return;
-    playClickSound(currentPointer);
-});
-
-// ============================================================
-// KEYBOARD SHORTCUTS
-// ============================================================
-document.addEventListener('keydown',function(e){
-    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveColor()}
-    if((e.ctrlKey||e.metaKey)&&e.key==='c'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){e.preventDefault();copyCode()}
-    if(e.key==='='||e.key==='+'){if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){fontSize=Math.min(80,fontSize+2);document.getElementById('fontSizeSlider').value=fontSize;updatePreview()}}
-    if(e.key==='-'){if(e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){fontSize=Math.max(8,fontSize-2);document.getElementById('fontSizeSlider').value=fontSize;updatePreview()}}
-});
-
-// ============================================================
-// INIT
-// ============================================================
-document.getElementById('copyCount').textContent='📋 '+copyCount+' copies';
-document.getElementById('saveCount').textContent='💾 '+savedItems.length+' saved';
-document.getElementById('themeCount').textContent='🎨 '+themeData.length+' themes';
-renderColors();
-renderFonts();
-renderSaved();
-updatePreview();
-setTheme('hacker');
-applyTranslations();
-setPointer('default');
+    setTheme('hacker');
+    applyTranslations();
+    setPointer('default');
 </script>
 
 </body>
