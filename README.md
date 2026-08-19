@@ -25,3 +25,4 @@
 
 ### 🌐 Web Version
 Just open in your browser:
+https://ryzenlight.github.io/NyxColor/
