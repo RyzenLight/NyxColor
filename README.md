@@ -21,14 +21,6 @@
 | 🌍 **Language** | Multi-language support (EN, FA, TR, AR, DE) |
 | 🔊 **Sound** | Unique sound for each pointer click |
 
----
-
-## 📸 Screenshots
-
-*[Add your screenshots here]*
-
----
-
 ## 🚀 Quick Start
 
 ### 🌐 Web Version
