@@ -428,7 +428,8 @@ var fonts = [
     "Poppins","Roboto","Open Sans","Montserrat","Lato","Oswald",
     "Raleway","Nunito","Quicksand","Playfair Display","Merriweather",
     "Josefin Sans","Pacifico","Lobster","Dancing Script","Bangers",
-    "Fredoka One","Righteous","Bebas Neue","Cinzel","Cormorant","Amiri"
+    "Fredoka One","Righteous","Bebas Neue","Cinzel","Cormorant","Amiri",
+    "Small Text"
 ];
 
 // ============================================================
@@ -462,12 +463,12 @@ var translations = {
 };
 
 // ============================================================
-// THEMES (بدون Matrix)
+// THEMES
 // ============================================================
 var themeData = [
     {id:"minecraft",name:"Minecraft",icon:"⛏",color:"#5d8a3c",particle:"#8ef29a",shapes:["square","circle"],bg:"radial-gradient(ellipse at 30% 70%,#3a5a2a,#22331a,#141d0f)"},
     {id:"cod",name:"Call of Duty",icon:"🔫",color:"#ff6b35",particle:"#ffb37a",shapes:["tracer","spark"],bg:"radial-gradient(ellipse at 50% 50%,#26261f,#17170f,#0a0a08)"},
-    {id:"hacker", name:"Hacker", icon:"💻", color:"#00ff41", particle:"#00ff41", shapes:["text","circle"], bg:"radial-gradient(ellipse at 70% 80%,#0a2a0a,#051505,#000800)", rain:true},
+    {id:"hacker",name:"Hacker",icon:"💻",color:"#00ff41",particle:"#00ff41",shapes:["text","circle"],rain:true,bg:"radial-gradient(ellipse at 70% 80%,#0a2a0a,#051505,#000800)"},
     {id:"forest",name:"Forest",icon:"🌲",color:"#4ade80",particle:"#86efac",shapes:["leaf","circle"],bg:"radial-gradient(ellipse at 50% 80%,#2d5a27,#1a3a14,#0a1a0a)"},
     {id:"nightcity",name:"Night City",icon:"🌃",color:"#f472b6",particle:"#22d3ee",shapes:["spark","circle"],bg:"radial-gradient(ellipse at 60% 40%,#1a2a4a,#0a0a2a,#00000a)"},
     {id:"cyberpunk",name:"Cyberpunk",icon:"🔮",color:"#d946ef",particle:"#f0abfc",shapes:["glitch","spark"],bg:"radial-gradient(ellipse at 40% 60%,#2a0a4a,#1a0a2a,#0a0a1a)"},
@@ -830,6 +831,39 @@ function setPointer(type){
 }
 
 // ============================================================
+// SMALL TEXT
+// ============================================================
+function convertToSmallText() {
+    var text = document.getElementById('textInput').value || ' ';
+    var preview = document.getElementById('previewText');
+    fontSize = parseInt(document.getElementById('fontSizeSlider').value);
+    document.getElementById('sizeLabel').textContent = fontSize + 'px';
+    
+    var smallMap = {
+        'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'s','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ',
+        'A':'ᴀ','B':'ʙ','C':'ᴄ','D':'ᴅ','E':'ᴇ','F':'ꜰ','G':'ɢ','H':'ʜ','I':'ɪ','J':'ᴊ','K':'ᴋ','L':'ʟ','M':'ᴍ','N':'ɴ','O':'ᴏ','P':'ᴘ','Q':'ǫ','R':'ʀ','S':'s','T':'ᴛ','U':'ᴜ','V':'ᴠ','W':'ᴡ','X':'x','Y':'ʏ','Z':'ᴢ'
+    };
+    
+    var result = '';
+    for (var i = 0; i < text.length; i++) {
+        var char = text[i];
+        if (smallMap[char]) {
+            result += smallMap[char];
+        } else {
+            result += char;
+        }
+    }
+    
+    preview.textContent = result;
+    preview.style.fontFamily = "Arial, sans-serif";
+    preview.style.fontSize = fontSize + 'px';
+    preview.style.color = '#ffffff';
+    preview.style.background = 'transparent';
+    preview.style.webkitBackgroundClip = '';
+    preview.style.webkitTextFillColor = '';
+}
+
+// ============================================================
 // MAIN FUNCTIONS
 // ============================================================
 function switchTab(tab){
@@ -925,9 +959,16 @@ function renderFonts(){
     document.getElementById('currentFontLabel').textContent=selectedFontName;
 }
 
-function selectFont(f){
-    selectedFont="'"+f+"', sans-serif";
-    selectedFontName=f;
+function selectFont(f) {
+    if (f === "Small Text") {
+        selectedFont = "Arial, sans-serif";
+        selectedFontName = "Small Text";
+        renderFonts();
+        convertToSmallText();
+        return;
+    }
+    selectedFont = "'"+f+"', sans-serif";
+    selectedFontName = f;
     renderFonts();
     updatePreview();
 }
@@ -935,37 +976,59 @@ function selectFont(f){
 function resetFont(){selectedFont="Arial, sans-serif";selectedFontName="Arial";renderFonts();updatePreview()}
 function resetSize(){fontSize=28;document.getElementById('fontSizeSlider').value=28;document.getElementById('sizeLabel').textContent='28px';updatePreview()}
 
-function updatePreview(){
-    var text=document.getElementById('textInput').value||' ';
-    var preview=document.getElementById('previewText');
-    fontSize=parseInt(document.getElementById('fontSizeSlider').value);
-    document.getElementById('sizeLabel').textContent=fontSize+'px';
-    if(text.trim()===''){preview.textContent=' ';preview.style.fontFamily=selectedFont;preview.style.fontSize=fontSize+'px';preview.style.color='#fff';return}
-    var chars=text.split('');
-    var colorValues=colors.map(function(c){return c.color});
-    var total=chars.length;
-    var html='';
-    if(currentMode==='gradient'){
-        preview.style.background='linear-gradient(135deg,'+colorValues.join(',')+')';
-        preview.style.webkitBackgroundClip='text';
-        preview.style.webkitTextFillColor='transparent';
-        preview.style.backgroundClip='text';
-        preview.textContent=text;
-        preview.style.fontFamily=selectedFont;
-        preview.style.fontSize=fontSize+'px';
+function updatePreview() {
+    var text = document.getElementById('textInput').value || ' ';
+    var preview = document.getElementById('previewText');
+    fontSize = parseInt(document.getElementById('fontSizeSlider').value);
+    document.getElementById('sizeLabel').textContent = fontSize + 'px';
+    
+    // ===== Small Text =====
+    if (selectedFontName === "Small Text") {
+        convertToSmallText();
         return;
     }
-    preview.style.background='transparent';
-    preview.style.webkitTextFillColor='';
-    preview.style.backgroundClip='';
-    for(var i=0;i<total;i++){
-        if(chars[i]===' '){html+=' ';continue}
-        if(currentMode==='font'){html+='<span style="color:#ffffff">'+chars[i]+'</span>'}
-        else{var ratio=total>1?i/(total-1):0;html+='<span style="color:'+getGradientColor(colorValues,ratio)+'">'+chars[i]+'</span>'}
+    
+    if (text.trim() === '') {
+        preview.textContent = ' ';
+        preview.style.fontFamily = selectedFont;
+        preview.style.fontSize = fontSize + 'px';
+        preview.style.color = '#fff';
+        return;
     }
-    preview.innerHTML=html;
-    preview.style.fontFamily=selectedFont;
-    preview.style.fontSize=fontSize+'px';
+    
+    var chars = text.split('');
+    var colorValues = colors.map(function(c){return c.color});
+    var total = chars.length;
+    var html = '';
+    
+    if (currentMode === 'gradient') {
+        preview.style.background = 'linear-gradient(135deg,' + colorValues.join(',') + ')';
+        preview.style.webkitBackgroundClip = 'text';
+        preview.style.webkitTextFillColor = 'transparent';
+        preview.style.backgroundClip = 'text';
+        preview.textContent = text;
+        preview.style.fontFamily = selectedFont;
+        preview.style.fontSize = fontSize + 'px';
+        return;
+    }
+    
+    preview.style.background = 'transparent';
+    preview.style.webkitTextFillColor = '';
+    preview.style.backgroundClip = '';
+    
+    for (var i = 0; i < total; i++) {
+        if (chars[i] === ' ') { html += ' '; continue; }
+        if (currentMode === 'font') {
+            html += '<span style="color:#ffffff">' + chars[i] + '</span>';
+        } else {
+            var ratio = total > 1 ? i/(total-1) : 0;
+            html += '<span style="color:' + getGradientColor(colorValues, ratio) + '">' + chars[i] + '</span>';
+        }
+    }
+    
+    preview.innerHTML = html;
+    preview.style.fontFamily = selectedFont;
+    preview.style.fontSize = fontSize + 'px';
 }
 
 function saveColor(){
@@ -982,24 +1045,66 @@ function saveColor(){
     setTimeout(function(){btn.textContent=orig},1200);
 }
 
-function copyCode(){
-    var text=document.getElementById('textInput').value||' ';
-    var colorData=colors.map(function(c){return c.color});
-    var chars=text.split('');
-    var total=chars.length;
-    var code='';
-    if(currentMode==='font'){code=text}
-    else if(currentMode==='gradient'){code='background:linear-gradient(135deg,'+colorData.join(',')+');-webkit-background-clip:text;-webkit-text-fill-color:transparent;'}
-    else{for(var i=0;i<total;i++){if(chars[i]===' '){code+=' ';continue}var ratio=total>1?i/(total-1):0;code+='&#'+getGradientColor(colorData,ratio).replace('#','')+chars[i]}}
-    navigator.clipboard.writeText(code).then(function(){
-        var badge=document.getElementById('copiedBadge');
+function copyCode() {
+    var text = document.getElementById('textInput').value || ' ';
+    var font = selectedFontName;
+    var result = text;
+    
+    // ===== اگر Small Text هست =====
+    if (font === "Small Text") {
+        var smallMap = {
+            'a':'ᴀ','b':'ʙ','c':'ᴄ','d':'ᴅ','e':'ᴇ','f':'ꜰ','g':'ɢ','h':'ʜ','i':'ɪ','j':'ᴊ','k':'ᴋ','l':'ʟ','m':'ᴍ','n':'ɴ','o':'ᴏ','p':'ᴘ','q':'ǫ','r':'ʀ','s':'s','t':'ᴛ','u':'ᴜ','v':'ᴠ','w':'ᴡ','x':'x','y':'ʏ','z':'ᴢ',
+            'A':'ᴀ','B':'ʙ','C':'ᴄ','D':'ᴅ','E':'ᴇ','F':'ꜰ','G':'ɢ','H':'ʜ','I':'ɪ','J':'ᴊ','K':'ᴋ','L':'ʟ','M':'ᴍ','N':'ɴ','O':'ᴏ','P':'ᴘ','Q':'ǫ','R':'ʀ','S':'s','T':'ᴛ','U':'ᴜ','V':'ᴠ','W':'ᴡ','X':'x','Y':'ʏ','Z':'ᴢ'
+        };
+        var converted = '';
+        for (var i = 0; i < text.length; i++) {
+            var char = text[i];
+            converted += smallMap[char] || char;
+        }
+        result = converted;
+    }
+    // ===== برای فونت‌های دیگه =====
+    else {
+        // با استفاده از Unicode Mathematical Bold/Script
+        var fontMap = {
+            'Script': {
+                'A':'𝓐','B':'𝓑','C':'𝓒','D':'𝓓','E':'𝓔','F':'𝓕','G':'𝓖','H':'𝓗','I':'𝓘','J':'𝓙','K':'𝓚','L':'𝓛','M':'𝓜','N':'𝓝','O':'𝓞','P':'𝓟','Q':'𝓠','R':'𝓡','S':'𝓢','T':'𝓣','U':'𝓤','V':'𝓥','W':'𝓦','X':'𝓧','Y':'𝓨','Z':'𝓩',
+                'a':'𝓪','b':'𝓫','c':'𝓬','d':'𝓭','e':'𝓮','f':'𝓯','g':'𝓰','h':'𝓱','i':'𝓲','j':'𝓳','k':'𝓴','l':'𝓵','m':'𝓶','n':'𝓷','o':'𝓸','p':'𝓹','q':'𝓺','r':'𝓻','s':'𝓼','t':'𝓽','u':'𝓾','v':'𝓿','w':'𝔀','x':'𝔁','y':'𝔂','z':'𝔃'
+            },
+            'Bold': {
+                'A':'𝗔','B':'𝗕','C':'𝗖','D':'𝗗','E':'𝗘','F':'𝗙','G':'𝗚','H':'𝗛','I':'𝗜','J':'𝗝','K':'𝗞','L':'𝗟','M':'𝗠','N':'𝗡','O':'𝗢','P':'𝗣','Q':'𝗤','R':'𝗥','S':'𝗦','T':'𝗧','U':'𝗨','V':'𝗩','W':'𝗪','X':'𝗫','Y':'𝗬','Z':'𝗭',
+                'a':'𝗮','b':'𝗯','c':'𝗰','d':'𝗱','e':'𝗲','f':'𝗳','g':'𝗴','h':'𝗵','i':'𝗶','j':'𝗷','k':'𝗸','l':'𝗹','m':'𝗺','n':'𝗻','o':'𝗼','p':'𝗽','q':'𝗾','r':'𝗿','s':'𝘀','t':'𝘁','u':'𝘂','v':'𝘃','w':'𝘄','x':'𝘅','y':'𝘆','z':'𝘇'
+            }
+        };
+        
+        // انتخاب نوع فونت
+        var fontType = 'Default';
+        if (font.includes('Script') || font.includes('cursive') || font.includes('Pacifico') || font.includes('Dancing') || font.includes('Lobster')) {
+            fontType = 'Script';
+        } else if (font.includes('Bold') || font.includes('Black') || font.includes('Heavy') || font.includes('Bangers')) {
+            fontType = 'Bold';
+        }
+        
+        if (fontType !== 'Default' && fontMap[fontType]) {
+            var map = fontMap[fontType];
+            var converted = '';
+            for (var i = 0; i < text.length; i++) {
+                var char = text[i];
+                converted += map[char] || char;
+            }
+            result = converted;
+        }
+    }
+    
+    navigator.clipboard.writeText(result).then(function() {
+        var badge = document.getElementById('copiedBadge');
         badge.classList.add('show');
         clearTimeout(copiedTimeout);
-        copiedTimeout=setTimeout(function(){badge.classList.remove('show')},1800);
+        copiedTimeout = setTimeout(function(){badge.classList.remove('show')},1800);
         copyCount++;
         localStorage.setItem('nyxcolor_copies',copyCount);
-        document.getElementById('copyCount').textContent='📋 '+copyCount+' copies';
-        showToast('Copied!');
+        document.getElementById('copyCount').textContent = '📋 '+copyCount+' copies';
+        showToast('✅ Copied!');
     });
 }
 
